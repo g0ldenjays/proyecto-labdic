@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { getUsers, createUser, updateUser, deleteUser, getUser } from '@/services/user.service'
-import type { User, NewUserPayload }  from '@/types/user.types'
+import type { User, NewUserPayload } from '@/types/user.types'
 import { ref, type Ref, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user.store'
 import { useToast } from 'primevue/usetoast'
@@ -32,12 +32,27 @@ async function loadUsers() {
 }
 
 // ── Ver detalles ──────────────────────────────────────────────────────
-const showDetailsDialog = ref(false)
+const showDetailsDrawer = ref(false)
+const detailsLoading = ref(false)
 const selectedUser: Ref<User | null> = ref(null)
 
-function viewDetails(user: User) {
-  selectedUser.value = user
-  showDetailsDialog.value = true
+async function viewDetails(user: User) {
+  showDetailsDrawer.value = true
+  detailsLoading.value = true
+
+  try {
+    selectedUser.value = await getUser(user.id)
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudo cargar el detalle del usuario.',
+      life: 4000,
+    })
+    showDetailsDrawer.value = false
+  } finally {
+    detailsLoading.value = false
+  }
 }
 
 // ── Eliminar usuario ──────────────────────────────────────────────────
@@ -53,7 +68,7 @@ async function handleDelete() {
   if (!userToDelete.value) return
   try {
     await deleteUser(userToDelete.value.id)
-    users.value = users.value.filter(u => u.id !== userToDelete.value!.id)
+    users.value = users.value.filter((u) => u.id !== userToDelete.value!.id)
     toast.add({
       severity: 'success',
       summary: 'Usuario eliminado',
@@ -76,43 +91,50 @@ async function handleDelete() {
 // ── Drawer crear / editar ─────────────────────────────────────────────
 type DrawerMode = 'create' | 'edit'
 
-const showDrawer    = ref(false)
-const drawerMode    = ref<DrawerMode>('create')
+const showDrawer = ref(false)
+const drawerMode = ref<DrawerMode>('create')
 const drawerLoading = ref(false)
-const submitting    = ref(false)
+const submitting = ref(false)
 
 const emptyForm: NewUserPayload = {
-  username: '', rut: '', name: '', email: '',
-  phone: '', address: '', password: '', isAdmin: false, roleIds: [],
+  username: '',
+  rut: '',
+  name: '',
+  email: '',
+  phone: '',
+  address: '',
+  password: '',
+  isAdmin: false,
+  roleIds: [],
 }
 const drawerForm = ref<NewUserPayload>({ ...emptyForm })
 const editingUserId = ref<number | null>(null)
 
 function openCreateDrawer() {
-  drawerMode.value    = 'create'
+  drawerMode.value = 'create'
   editingUserId.value = null
-  drawerForm.value    = { ...emptyForm }
-  showDrawer.value    = true
+  drawerForm.value = { ...emptyForm }
+  showDrawer.value = true
 }
 
 async function openEditDrawer(user: User) {
-  drawerMode.value    = 'edit'
+  drawerMode.value = 'edit'
   editingUserId.value = user.id
-  showDrawer.value    = true
+  showDrawer.value = true
   drawerLoading.value = true
 
   try {
     const u = await getUser(user.id)
     drawerForm.value = {
       username: u.username,
-      rut:      u.rut,
-      name:     u.name,
-      email:    u.email,
-      phone:    u.phone,
-      address:  u.address,
-      isAdmin:  u.isAdmin,
-      password: '',                         // nunca se trae del backend
-      roleIds:  u.roles.map(r => r.id),
+      rut: u.rut,
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      address: u.address,
+      isAdmin: u.isAdmin,
+      password: '', // nunca se trae del backend
+      roleIds: u.roles.map((r) => r.id),
     }
   } catch {
     toast.add({
@@ -143,7 +165,6 @@ async function handleSubmit(payload: NewUserPayload) {
         detail: `Se creó "${payload.username}" correctamente.`,
         life: 3000,
       })
-
     } else {
       // Edit: no enviamos password si está vacío
       const toSend: Partial<NewUserPayload> = { ...payload }
@@ -152,7 +173,7 @@ async function handleSubmit(payload: NewUserPayload) {
       const updated = await updateUser(editingUserId.value!, toSend)
 
       // Actualizar en memoria sin recargar toda la lista
-      const idx = users.value.findIndex(u => u.id === editingUserId.value)
+      const idx = users.value.findIndex((u) => u.id === editingUserId.value)
       if (idx !== -1) users.value[idx] = updated
 
       toast.add({
@@ -164,7 +185,6 @@ async function handleSubmit(payload: NewUserPayload) {
     }
 
     showDrawer.value = false
-
   } catch {
     toast.add({
       severity: 'error',
@@ -183,7 +203,6 @@ onMounted(loadUsers)
 
 <template>
   <div class="page-container">
-
     <!-- Cabecera de la página -->
     <div class="page-header">
       <div>
@@ -202,9 +221,9 @@ onMounted(loadUsers)
     <Card>
       <template #content>
         <DataTable :value="users" :loading="loading" dataKey="id" stripedRows>
-          <Column field="username" header="Usuario"  />
-          <Column field="name"     header="Nombre"   />
-          <Column field="phone"    header="Teléfono" />
+          <Column field="username" header="Usuario" />
+          <Column field="name" header="Nombre" />
+          <Column field="phone" header="Teléfono" />
 
           <Column field="isActive" header="Estado">
             <template #body="{ data }">
@@ -232,21 +251,27 @@ onMounted(loadUsers)
             <template #body="{ data }">
               <Button
                 icon="pi pi-info-circle"
-                rounded text severity="info"
+                rounded
+                text
+                severity="info"
                 v-tooltip.top="'Ver detalles'"
                 @click="viewDetails(data)"
               />
               <Button
                 v-if="userStore.canManageUsers"
                 icon="pi pi-pencil"
-                rounded text severity="secondary"
+                rounded
+                text
+                severity="secondary"
                 v-tooltip.top="'Editar'"
                 @click="openEditDrawer(data)"
               />
               <Button
                 v-if="userStore.canManageUsers"
                 icon="pi pi-trash"
-                rounded text severity="danger"
+                rounded
+                text
+                severity="danger"
                 v-tooltip.top="'Eliminar'"
                 @click="confirmDelete(data)"
               />
@@ -279,9 +304,14 @@ onMounted(loadUsers)
       />
     </Drawer>
 
-    <!-- Dialogs -->
-    <UserDetailsDialog      v-model="showDetailsDialog" :user="selectedUser" />
-    <UserDeleteConfirmDialog v-model="showDeleteDialog"  :user="userToDelete" @confirm="handleDelete" />
+    <!-- Drawer Detalles -->
+    <UserDetailsDialog v-model="showDetailsDrawer" :user="selectedUser" :loading="detailsLoading" />
+    <!-- Dialog -->
+    <UserDeleteConfirmDialog
+      v-model="showDeleteDialog"
+      :user="userToDelete"
+      @confirm="handleDelete"
+    />
   </div>
 </template>
 
