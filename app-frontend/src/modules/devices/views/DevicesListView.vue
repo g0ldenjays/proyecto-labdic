@@ -260,6 +260,7 @@ onMounted(() => {
           <DeviceStatusBadge status="disponible" />
           <DeviceStatusBadge status="prestado" />
           <DeviceStatusBadge status="en_mantenimiento" />
+          <DeviceStatusBadge status="de_baja" />
         </div>
       </div>
       <Button icon="pi pi-plus" label="Nuevo Dispositivo" @click="openCreateDrawer" />

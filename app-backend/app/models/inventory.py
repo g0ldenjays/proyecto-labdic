@@ -1,7 +1,7 @@
 # Parche 1.2
 from datetime import datetime, timezone
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, String, JSON, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from . import Base
@@ -39,6 +39,7 @@ class User(Base):
     roles: Mapped[list["Role"]] = relationship("Role", secondary="user_roles", back_populates="users")
     loan_requests: Mapped[list["LoanRequest"]] = relationship("LoanRequest", back_populates="user")
     status_logs: Mapped[list["DeviceStatusLog"]] = relationship("DeviceStatusLog", back_populates="user")
+    administrative_documents: Mapped[list["AdministrativeDocument"]] = relationship("AdministrativeDocument", back_populates="generated_by_user")
 
 class Role(Base):
     """Role model for user roles in the system."""
@@ -137,6 +138,9 @@ class Ubication(Base):
 
     devices: Mapped[list["Device"]] = relationship("Device", back_populates="ubication")
 
+    source_documents: Mapped[list["AdministrativeDocument"]] = relationship("AdministrativeDocument", foreign_keys="AdministrativeDocument.source_ubication_id", back_populates="source_ubication")
+    target_documents: Mapped[list["AdministrativeDocument"]] = relationship("AdministrativeDocument", foreign_keys="AdministrativeDocument.target_ubication_id", back_populates="target_ubication")
+
 class Device(Base):
     """Para administrar cada elemento del inventario."""
 
@@ -164,7 +168,16 @@ class Device(Base):
     cascade="all, delete-orphan",
     passive_deletes=True,
     )
+
     status_logs: Mapped[list["DeviceStatusLog"]] = relationship("DeviceStatusLog", back_populates="device")
+    administrative_document_items: Mapped[list["AdministrativeDocumentItem"]] = relationship(
+    "AdministrativeDocumentItem",
+    back_populates="device",
+    cascade="all, delete-orphan",
+    passive_deletes=True,
+    )
+
+
 class LoanRequest(Base):
     """Para gestionar las solicitudes de préstamo de dispositivos."""
 
@@ -221,3 +234,74 @@ class DeviceStatusLog(Base):
     user: Mapped["User"] = relationship("User", back_populates="status_logs")
     device: Mapped["Device"] = relationship("Device", back_populates="status_logs")
     status: Mapped["Status"] = relationship("Status", back_populates="status_logs")
+
+class AdministrativeDocument(Base):
+    """Documento administrativo interno del inventario."""
+
+    __tablename__ = "administrative_documents"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_type: Mapped[str] = mapped_column(String(30))  # Dar de baja | traslado
+    generated_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+    generated_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    observations: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    source_ubication_id: Mapped[int | None] = mapped_column(
+        ForeignKey("ubications.id"),
+        nullable=True,
+    )
+    target_ubication_id: Mapped[int | None] = mapped_column(
+        ForeignKey("ubications.id"),
+        nullable=True,
+    )
+
+    snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    generated_by_user: Mapped["User"] = relationship(
+        "User",
+        back_populates="administrative_documents",
+    )
+
+    source_ubication: Mapped["Ubication | None"] = relationship(
+        "Ubication",
+        foreign_keys=[source_ubication_id],
+        back_populates="source_documents",
+    )
+
+    target_ubication: Mapped["Ubication | None"] = relationship(
+        "Ubication",
+        foreign_keys=[target_ubication_id],
+        back_populates="target_documents",
+    )
+
+    items: Mapped[list["AdministrativeDocumentItem"]] = relationship(
+        "AdministrativeDocumentItem",
+        back_populates="document",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class AdministrativeDocumentItem(Base):
+    """Dispositivos asociados a un documento administrativo."""
+
+    __tablename__ = "administrative_document_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(
+        ForeignKey("administrative_documents.id", ondelete="CASCADE")
+    )
+    device_id: Mapped[int] = mapped_column(
+        ForeignKey("devices.id", ondelete="CASCADE")
+    )
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    document: Mapped["AdministrativeDocument"] = relationship(
+        "AdministrativeDocument",
+        back_populates="items",
+    )
+    device: Mapped["Device"] = relationship(
+        "Device",
+        back_populates="administrative_document_items",
+    )

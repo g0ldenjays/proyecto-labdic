@@ -15,6 +15,7 @@ from .loan.controllers import LoanRequestController
 from .product.controllers import ProductController
 from .role.controllers import RoleController
 from .user.controllers import UserController
+from .inventory_admin import InventoryAdminController
 
 labdic_inventory_router = Router(
     path="/labdic_inventory",
@@ -30,5 +31,6 @@ labdic_inventory_router = Router(
         UbicationController,
         DeviceController,
         LoanRequestController,
+        InventoryAdminController,
     ],
 )
