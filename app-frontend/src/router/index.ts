@@ -20,6 +20,8 @@ import ProductDetailView from '@/modules/products/views/ProductDetailsView.vue'
 import DevicesListView from '@/modules/devices/views/DevicesListView.vue'
 import AdminLoansView  from '@/modules/loans/views/AdminLoansView.vue'
 
+import InventoryAdminView from '@/modules/inventory-admin/views/InventoryAdminView.vue'
+
 import { useAuthStore } from '@/stores/auth.store'
 import { useUserStore } from '@/stores/user.store'
 
@@ -46,6 +48,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'admin/products/:id', name: 'admin-product-detail',  component: ProductDetailView,meta: { requiresAdmin: true } },
       { path: 'admin/devices',      name: 'admin-devices',         component: DevicesListView,  meta: { requiresAdmin: true } },
       { path: 'admin/loans',        name: 'admin-loans',           component: AdminLoansView,   meta: { requiresAdmin: true } },
+      { path: 'admin/inventory-admin', name: 'inventory-admin', component: InventoryAdminView, meta: { requiresAdmin: true } },
     ],
   },
   {
