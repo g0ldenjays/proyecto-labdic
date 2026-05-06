@@ -1,6 +1,7 @@
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import Session, selectinload
 from app.models.inventory import Category, Device, Product, Status, Ubication
+from typing import Sequence
 
 
 class InventoryAdminRepository:
@@ -38,3 +39,43 @@ class InventoryAdminRepository:
             .order_by(Category.name)
         )
         return [(name, count) for name, count in self.session.execute(stmt).all()]
+    
+    def list_inventory(
+        self,
+        status_id: int | None = None,
+        ubication_id: int | None = None,
+        category_id: int | None = None,
+        search: str | None = None,
+    ) -> Sequence[Device]:
+        stmt = (
+            select(Device)
+            .join(Device.product)
+            .outerjoin(Product.category)
+            .options(
+                selectinload(Device.product).selectinload(Product.category),
+                selectinload(Device.status),
+                selectinload(Device.ubication),
+            )
+            .order_by(Product.name.asc(), Device.id.asc())
+        )
+
+        if status_id is not None:
+            stmt = stmt.where(Device.status_id == status_id)
+
+        if ubication_id is not None:
+            stmt = stmt.where(Device.ubication_id == ubication_id)
+
+        if category_id is not None:
+            stmt = stmt.where(Product.category_id == category_id)
+
+        if search and search.strip():
+            pattern = f"%{search.strip()}%"
+            stmt = stmt.where(
+                or_(
+                    Product.name.ilike(pattern),
+                    Device.internal_code.ilike(pattern),
+                    Device.serial_number.ilike(pattern),
+                )
+            )
+
+        return list(self.session.execute(stmt).scalars().all())

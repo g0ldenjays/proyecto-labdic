@@ -32,6 +32,8 @@ declare module 'vue' {
     Drawer: typeof import('primevue/drawer')['default']
     EmptyState: typeof import('./src/components/EmptyState.vue')['default']
     FloatLabel: typeof import('primevue/floatlabel')['default']
+    IconField: typeof import('primevue/iconfield')['default']
+    InputIcon: typeof import('primevue/inputicon')['default']
     InputText: typeof import('primevue/inputtext')['default']
     Label: typeof import('primevue/label')['default']
     LoanStatusBadge: typeof import('./src/components/ui/LoanStatusBadge.vue')['default']

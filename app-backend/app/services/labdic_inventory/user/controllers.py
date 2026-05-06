@@ -46,8 +46,12 @@ class UserController(Controller):
     exception_handlers = {NotFoundError: not_found_error_handler}
 
     @get("/me")
-    async def get_my_user(self, request: "Request[User, Token, Any]") -> User:
-        return request.user
+    async def get_my_user(
+        self,
+        request: "Request[User, Token, Any]",
+        users_repo: UserRepository,
+    ) -> User:
+        return users_repo.get_my_user(request.user.username)
 
     @get(path="/", summary="ListUsers")
     async def list(self, users_repo: UserRepository) -> Sequence[User]:
