@@ -78,9 +78,11 @@ class InventoryAdminService:
         if len(devices) != len(device_ids):
             raise ValueError("Uno o más dispositivos no existen.")
 
-        target_ubication = self.repository.get_ubication_by_id(data.target_ubication_id)
-        if not target_ubication:
-            raise ValueError("La ubicación destino no existe.")
+        target_name = data.target_ubication_name.strip()
+        if not target_name:
+            raise ValueError("La ubicación destino es obligatoria.")
+
+        target_ubication = self.repository.get_or_create_ubication_by_name(target_name)
 
         unique_source_ids = {device.ubication_id for device in devices if device.ubication_id is not None}
         source_ubication_id = next(iter(unique_source_ids)) if len(unique_source_ids) == 1 else None

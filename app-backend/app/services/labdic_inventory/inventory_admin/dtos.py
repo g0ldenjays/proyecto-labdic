@@ -12,7 +12,7 @@ class InventoryDashboardDTO(Struct):
 
 class InventoryTransferCreateDTO(Struct):
     device_ids: list[int]
-    target_ubication_id: int
+    target_ubication_name: str
     reason: str | None = None
     observations: str | None = None
 

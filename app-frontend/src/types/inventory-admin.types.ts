@@ -19,7 +19,7 @@ export interface InventoryAdminFilters {
 
 export interface InventoryTransferPayload {
   deviceIds: number[]
-  targetUbicationId: number
+  targetUbicationName: string
   reason?: string | null
   observations?: string | null
 }

@@ -58,7 +58,7 @@ export async function createInventoryTransfer(
     method: 'POST',
     body: JSON.stringify({
       device_ids: payload.deviceIds,
-      target_ubication_id: payload.targetUbicationId,
+      target_ubication_name: payload.targetUbicationName,
       reason: payload.reason,
       observations: payload.observations,
     }),

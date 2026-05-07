@@ -144,7 +144,7 @@ async function handleTransfer(payload: Omit<InventoryTransferPayload, 'deviceIds
     return
   }
 
-  if (!payload.targetUbicationId) {
+  if (!payload.targetUbicationName) {
     toast.add({
       severity: 'warn',
       summary: 'Campo requerido',
@@ -158,7 +158,7 @@ async function handleTransfer(payload: Omit<InventoryTransferPayload, 'deviceIds
   try {
     const result = await createInventoryTransfer({
       deviceIds: selectedDevices.value.map(device => device.id),
-      targetUbicationId: payload.targetUbicationId,
+      targetUbicationName: payload.targetUbicationName,
       reason: payload.reason || null,
       observations: payload.observations || null,
     })

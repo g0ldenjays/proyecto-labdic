@@ -21,14 +21,14 @@ const visible = computed({
 })
 
 const form = ref({
-  targetUbicationId: null as number | null,
+  targetUbicationName: '',
   reason: '',
   observations: '',
 })
 
 function resetForm() {
   form.value = {
-    targetUbicationId: null,
+    targetUbicationName: '',
     reason: '',
     observations: '',
   }
@@ -47,7 +47,7 @@ function close() {
 
 function handleSubmit() {
   emit('submit', {
-    targetUbicationId: form.value.targetUbicationId!,
+    targetUbicationName: form.value.targetUbicationName.trim(),
     reason: form.value.reason || null,
     observations: form.value.observations || null,
   })
@@ -66,8 +66,8 @@ function handleSubmit() {
 
       <div class="flex flex-col gap-1">
         <label class="font-medium">Ubicación destino</label>
-        <Select
-          v-model="form.targetUbicationId"
+        <InputText
+          v-model="form.targetUbicationName"
           :options="ubications"
           optionLabel="name"
           optionValue="id"

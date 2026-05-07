@@ -13,7 +13,7 @@ export interface Token {
 
 export interface InventoryTransferPayload {
   deviceIds: number[]
-  targetUbicationId: number
+  targetUbicationName: string
   reason?: string | null
   observations?: string | null
 }

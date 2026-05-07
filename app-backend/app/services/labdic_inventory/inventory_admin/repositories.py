@@ -117,3 +117,20 @@ class InventoryAdminRepository:
             )
         )
         return self.session.execute(stmt).scalar_one_or_none()
+
+    def get_or_create_ubication_by_name(self, name: str) -> Ubication:
+        normalized = name.strip()
+
+        stmt = select(Ubication).where(func.lower(Ubication.name) == normalized.lower())
+        ubication = self.session.execute(stmt).scalar_one_or_none()
+
+        if ubication:
+            return ubication
+
+        ubication = Ubication(
+            name=normalized,
+            description="Ubicación creada desde traslado administrativo",
+        )
+        self.session.add(ubication)
+        self.session.flush()
+        return ubication
