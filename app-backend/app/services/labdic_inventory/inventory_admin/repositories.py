@@ -104,3 +104,16 @@ class InventoryAdminRepository:
 
     def commit(self) -> None:
         self.session.commit()
+    
+    def get_administrative_document_by_id(self, document_id: int) -> AdministrativeDocument | None:
+        stmt = (
+            select(AdministrativeDocument)
+            .where(AdministrativeDocument.id == document_id)
+            .options(
+                selectinload(AdministrativeDocument.generated_by_user),
+                selectinload(AdministrativeDocument.source_ubication),
+                selectinload(AdministrativeDocument.target_ubication),
+                selectinload(AdministrativeDocument.items),
+            )
+        )
+        return self.session.execute(stmt).scalar_one_or_none()

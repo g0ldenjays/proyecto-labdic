@@ -7,7 +7,7 @@ import type { Device } from '@/types/device.types'
 import type { InventoryAdminFilters, InventoryDashboard, InventoryTransferPayload } from '@/types/inventory-admin.types'
 
 import { getCategories, getStatuses, getUbications } from '@/services/catalog.service'
-import { getInventoryDashboard, getInventoryDevices, downloadInventoryXlsx, createInventoryTransfer } from '@/services/inventory-admin.service'
+import { getInventoryDashboard, getInventoryDevices, downloadInventoryXlsx, createInventoryTransfer, downloadTransferPdf } from '@/services/inventory-admin.service'
 import DeviceStatusBadge from '@/components/ui/DevicesStatusBadge.vue'
 import InventoryTransferDrawer from '@/modules/inventory-admin/components/InventoryTransferDrawer.vue'
 
@@ -162,6 +162,7 @@ async function handleTransfer(payload: Omit<InventoryTransferPayload, 'deviceIds
       reason: payload.reason || null,
       observations: payload.observations || null,
     })
+    await downloadTransferPdf(result.documentId)
 
     toast.add({
       severity: 'success',

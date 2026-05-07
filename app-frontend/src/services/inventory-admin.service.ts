@@ -64,3 +64,10 @@ export async function createInventoryTransfer(
     }),
   })
 }
+
+export async function downloadTransferPdf(documentId: number): Promise<void> {
+  await apiDownload(
+    `${BASE_PATH}/documents/${documentId}/transfer/pdf`,
+    `traslado_${documentId}.pdf`,
+  )
+}
