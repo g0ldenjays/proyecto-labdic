@@ -1,4 +1,4 @@
-from litestar import Controller, get
+from litestar import Controller, Response, get
 from litestar.di import Provide
 from litestar.params import Parameter
 from sqlalchemy.orm import Session
@@ -43,4 +43,28 @@ class InventoryAdminController(Controller):
             ubication_id=ubication_id,
             category_id=category_id,
             search=search,
+        )
+    
+    @get("/export/xlsx", summary="ExportInventoryAdminXlsx")
+    async def export_inventory_xlsx(
+        self,
+        inventory_admin_service: InventoryAdminService,
+        status_id: Optional[int] = Parameter(query="status_id", default=None, required=False),
+        ubication_id: Optional[int] = Parameter(query="ubication_id", default=None, required=False),
+        category_id: Optional[int] = Parameter(query="category_id", default=None, required=False),
+        search: Optional[str] = Parameter(query="search", default=None, required=False),
+    ) -> Response[bytes]:
+        content = inventory_admin_service.export_inventory_xlsx(
+            status_id=status_id,
+            ubication_id=ubication_id,
+            category_id=category_id,
+            search=search,
+        )
+
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": 'attachment; filename="inventario_admin.xlsx"'
+            },
         )

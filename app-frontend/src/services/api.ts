@@ -79,3 +79,47 @@ export async function apiFetch<T>(
   //console.log('apiFetch response:', jsonResponse)
   return jsonResponse
 }
+
+export async function apiDownload(
+  endpoint: string,
+  filename: string,
+  options: RequestInit = {},
+): Promise<void> {
+  const auth = useAuthStore()
+  const user = useUserStore()
+  const router = useRouter()
+
+  let headers = options.headers || {}
+
+  if (auth.isAuthenticated) {
+    headers = {
+      Authorization: `Bearer ${auth.token}`,
+      ...headers,
+    }
+  }
+
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      auth.clearToken()
+      user.clearUser()
+      router.push({ name: 'login', query: { expiredToken: 'true' } })
+    }
+
+    throw new Error(`HTTP error! status: ${response.status}`)
+  }
+
+  const blob = await response.blob()
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.URL.revokeObjectURL(url)
+}

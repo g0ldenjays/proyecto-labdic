@@ -11,21 +11,19 @@ from app.models.inventory import Device, DeviceStatusLog
 # --- Device ---
 class DeviceReadDTO(SQLAlchemyDTO[Device]):
     config = SQLAlchemyDTOConfig(
-        exclude={"loan_request_items", "status_logs"},
+        exclude={"loan_request_items", "status_logs", "administrative_document_items"},
         partial=True,
     )
 
 class DeviceCreateDTO(SQLAlchemyDTO[Device]):
     config = SQLAlchemyDTOConfig(
-        exclude={"id", "created_at", "loan_request_items", "status_logs",
-                 "product", "status", "ubication"},
+        exclude={"id", "created_at", "loan_request_items", "status_logs", "product", "status", "ubication", "administrative_document_items"},
         partial=False,
     )
 
 class DeviceUpdateDTO(SQLAlchemyDTO[Device]):
     config = SQLAlchemyDTOConfig(
-        exclude={"id", "created_at", "status_id", "loan_request_items", "status_logs",
-                 "product", "status", "ubication"},
+        exclude={"id", "created_at", "status_id", "loan_request_items", "status_logs", "product", "status", "ubication", "administrative_document_items"},
         partial=True,
     )
 

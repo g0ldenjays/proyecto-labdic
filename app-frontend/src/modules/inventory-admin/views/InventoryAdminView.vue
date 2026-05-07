@@ -7,16 +7,18 @@ import type { Device } from '@/types/device.types'
 import type { InventoryAdminFilters, InventoryDashboard } from '@/types/inventory-admin.types'
 
 import { getCategories, getStatuses, getUbications } from '@/services/catalog.service'
-import { getInventoryDashboard, getInventoryDevices } from '@/services/inventory-admin.service'
+import { getInventoryDashboard, getInventoryDevices, downloadInventoryXlsx } from '@/services/inventory-admin.service'
 import DeviceStatusBadge from '@/components/ui/DevicesStatusBadge.vue'
 
 const toast = useToast()
 
 const loadingDashboard = ref(false)
 const loadingInventory = ref(false)
+const exportingXlsx = ref(false)
 
 const dashboard = ref<InventoryDashboard | null>(null)
 const devices = ref<Device[]>([])
+const selectedDevices = ref<Device[]>([])
 
 const statuses = ref<Status[]>([])
 const ubications = ref<Ubication[]>([])
@@ -28,6 +30,10 @@ const filters = ref<InventoryAdminFilters>({
   ubicationId: null,
   categoryId: null,
 })
+
+function clearSelection() {
+  selectedDevices.value = []
+}
 
 async function loadCatalogs() {
   try {
@@ -69,6 +75,9 @@ async function loadInventory() {
   loadingInventory.value = true
   try {
     devices.value = await getInventoryDevices(filters.value)
+
+    const visibleIds = new Set(devices.value.map(device => device.id))
+    selectedDevices.value = selectedDevices.value.filter(device => visibleIds.has(device.id))
   } catch {
     toast.add({
       severity: 'error',
@@ -92,7 +101,24 @@ function clearFilters() {
     ubicationId: null,
     categoryId: null,
   }
+  clearSelection()
   loadInventory()
+}
+
+async function handleExportXlsx() {
+  exportingXlsx.value = true
+  try {
+    await downloadInventoryXlsx(filters.value)
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudo exportar el inventario en XLSX.',
+      life: 4000,
+    })
+  } finally {
+    exportingXlsx.value = false
+  }
 }
 
 onMounted(async () => {
@@ -233,12 +259,37 @@ onMounted(async () => {
             outlined
             @click="clearFilters"
           />
+          <Button
+            label="Exportar XLSX"
+            icon="pi pi-file-excel"
+            severity="success"
+            outlined
+            @click="handleExportXlsx"
+            :loading="exportingXlsx"
+          />
         </div>
 
-        <DataTable :value="devices" :loading="loadingInventory" dataKey="id" stripedRows>
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-sm text-surface-500">
+            {{ selectedDevices.length }} dispositivo(s) seleccionado(s)
+          </span>
+
+          <Button
+            label="Limpiar selección"
+            icon="pi pi-times"
+            severity="secondary"
+            text
+            :disabled="selectedDevices.length === 0"
+            @click="clearSelection"
+          />
+        </div>
+
+        <DataTable v-model:selection="selectedDevices" :value="devices" :loading="loadingInventory" dataKey="id" stripedRows>
           <template #empty>
             <div class="text-center py-6 text-muted-color">No hay dispositivos para mostrar.</div>
           </template>
+
+          <Column selectionMode="multiple" headerStyle="width: 3rem" />
 
           <Column header="Producto">
             <template #body="{ data }">

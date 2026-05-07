@@ -3,6 +3,7 @@ from .dtos import InventoryCountItem, InventoryDashboardDTO
 from .repositories import InventoryAdminRepository
 from collections.abc import Sequence
 from app.models.inventory import Device
+from .exporters import build_inventory_xlsx
 
 class InventoryAdminService:
     def __init__(self, session: Session) -> None:
@@ -46,3 +47,18 @@ class InventoryAdminService:
             category_id=category_id,
             search=search,
         )
+    
+    def export_inventory_xlsx(
+        self,
+        status_id: int | None = None,
+        ubication_id: int | None = None,
+        category_id: int | None = None,
+        search: str | None = None,
+    ) -> bytes:
+        devices = self.repository.list_inventory(
+            status_id=status_id,
+            ubication_id=ubication_id,
+            category_id=category_id,
+            search=search,
+        )
+        return build_inventory_xlsx(devices)

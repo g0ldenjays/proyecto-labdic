@@ -70,7 +70,7 @@ function isActive(name: string) {
 <style scoped>
 .app-sidebar {
   width: 220px;
-  min-height: 100vh;
+  height: 100vh;
   background: var(--p-surface-900, #0f172a);
   border-right: 1px solid var(--p-surface-700, rgba(255, 255, 255, 0.08));
   display: flex;
@@ -78,6 +78,9 @@ function isActive(name: string) {
   padding: 1rem 0.75rem;
   transition: width 200ms ease;
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
 }
 .app-sidebar.collapsed {
   width: 64px;

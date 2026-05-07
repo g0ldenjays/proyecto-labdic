@@ -21,6 +21,7 @@
 .app-layout {
   display: flex;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 .app-main {
@@ -28,6 +29,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0; /* evita overflow del sidebar */
+  height: 100vh;
 }
 
 .app-content {
