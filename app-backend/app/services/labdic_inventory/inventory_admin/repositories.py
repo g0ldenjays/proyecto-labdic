@@ -1,6 +1,6 @@
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
-from app.models.inventory import Category, Device, Product, Status, Ubication
+from app.models.inventory import Category, Device, Product, Status, Ubication, AdministrativeDocument, AdministrativeDocumentItem
 from typing import Sequence
 
 
@@ -79,3 +79,28 @@ class InventoryAdminRepository:
             )
 
         return list(self.session.execute(stmt).scalars().all())
+    
+    def get_devices_by_ids(self, device_ids: list[int]) -> list[Device]:
+        stmt = (
+            select(Device)
+            .where(Device.id.in_(device_ids))
+            .options(
+                selectinload(Device.product).selectinload(Product.category),
+                selectinload(Device.status),
+                selectinload(Device.ubication),
+            )
+            .order_by(Device.id.asc())
+        )
+        return list(self.session.execute(stmt).scalars().all())
+
+    def get_ubication_by_id(self, ubication_id: int) -> Ubication | None:
+        stmt = select(Ubication).where(Ubication.id == ubication_id)
+        return self.session.execute(stmt).scalar_one_or_none()
+
+    def add_administrative_document(self, document: AdministrativeDocument) -> AdministrativeDocument:
+        self.session.add(document)
+        self.session.flush()
+        return document
+
+    def commit(self) -> None:
+        self.session.commit()

@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
-from .dtos import InventoryCountItem, InventoryDashboardDTO
+from .dtos import InventoryCountItem, InventoryDashboardDTO, InventoryTransferCreateDTO, InventoryTransferResultDTO
 from .repositories import InventoryAdminRepository
 from collections.abc import Sequence
-from app.models.inventory import Device
+from app.models.inventory import Device, AdministrativeDocument, AdministrativeDocumentItem
 from .exporters import build_inventory_xlsx
 
 class InventoryAdminService:
@@ -62,3 +62,68 @@ class InventoryAdminService:
             search=search,
         )
         return build_inventory_xlsx(devices)
+    
+    def create_transfer_document(
+        self,
+        data: InventoryTransferCreateDTO,
+        generated_by_user_id: int,
+    ) -> InventoryTransferResultDTO:
+        device_ids = list(dict.fromkeys(data.device_ids))
+
+        if not device_ids:
+            raise ValueError("Debes seleccionar al menos un dispositivo.")
+
+        devices = self.repository.get_devices_by_ids(device_ids)
+        if len(devices) != len(device_ids):
+            raise ValueError("Uno o más dispositivos no existen.")
+
+        target_ubication = self.repository.get_ubication_by_id(data.target_ubication_id)
+        if not target_ubication:
+            raise ValueError("La ubicación destino no existe.")
+
+        unique_source_ids = {device.ubication_id for device in devices if device.ubication_id is not None}
+        source_ubication_id = next(iter(unique_source_ids)) if len(unique_source_ids) == 1 else None
+
+        snapshot = {
+            "target_ubication": {
+                "id": target_ubication.id,
+                "name": target_ubication.name,
+            },
+            "devices": [
+                {
+                    "id": device.id,
+                    "product": device.product.name if device.product else None,
+                    "internal_code": device.internal_code,
+                    "serial_number": device.serial_number,
+                    "status": device.status.name if device.status else None,
+                    "source_ubication": device.ubication.name if device.ubication else None,
+                }
+                for device in devices
+            ],
+        }
+
+        document = AdministrativeDocument(
+            document_type="transfer",
+            generated_by_user_id=generated_by_user_id,
+            reason=data.reason,
+            observations=data.observations,
+            source_ubication_id=source_ubication_id,
+            target_ubication_id=target_ubication.id,
+            snapshot=snapshot,
+            items=[
+                AdministrativeDocumentItem(device_id=device.id)
+                for device in devices
+            ],
+        )
+
+        self.repository.add_administrative_document(document)
+
+        for device in devices:
+            device.ubication_id = target_ubication.id
+
+        self.repository.commit()
+
+        return InventoryTransferResultDTO(
+            document_id=document.id,
+            updated_devices=len(devices),
+        )

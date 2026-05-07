@@ -1,9 +1,10 @@
-from litestar import Controller, Response, get
+from litestar import Controller, Response, get, post, Request
+from litestar.exceptions import ClientException
 from litestar.di import Provide
 from litestar.params import Parameter
 from sqlalchemy.orm import Session
 
-from .dtos import InventoryDashboardDTO
+from .dtos import InventoryDashboardDTO, InventoryTransferCreateDTO, InventoryTransferResultDTO
 from .services import InventoryAdminService
 from app.models.inventory import Device
 from app.services.labdic_inventory.device.dtos import DeviceReadDTO
@@ -68,3 +69,18 @@ class InventoryAdminController(Controller):
                 "Content-Disposition": 'attachment; filename="inventario_admin.xlsx"'
             },
         )
+    
+    @post("/documents/transfer", summary="CreateInventoryTransferDocument")
+    async def create_transfer_document(
+        self,
+        data: InventoryTransferCreateDTO,
+        request: Request,
+        inventory_admin_service: InventoryAdminService,
+    ) -> InventoryTransferResultDTO:
+        try:
+            return inventory_admin_service.create_transfer_document(
+                data=data,
+                generated_by_user_id=request.user.id,
+            )
+        except ValueError as exc:
+            raise ClientException(str(exc)) from exc

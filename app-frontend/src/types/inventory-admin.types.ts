@@ -16,3 +16,15 @@ export interface InventoryAdminFilters {
   ubicationId?: number | null
   categoryId?: number | null
 }
+
+export interface InventoryTransferPayload {
+  deviceIds: number[]
+  targetUbicationId: number
+  reason?: string | null
+  observations?: string | null
+}
+
+export interface InventoryTransferResult {
+  documentId: number
+  updatedDevices: number
+}

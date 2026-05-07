@@ -1,4 +1,4 @@
-import type { InventoryAdminFilters, InventoryDashboard } from '@/types/inventory-admin.types'
+import type { InventoryAdminFilters, InventoryDashboard, InventoryTransferPayload, InventoryTransferResult } from '@/types/inventory-admin.types'
 import { apiFetch, apiDownload } from '@/services/api'
 import type { Device } from '@/types/device.types'
 
@@ -19,7 +19,7 @@ export async function getInventoryDevices(filters: InventoryAdminFilters = {}): 
   }
   if (filters.ubicationId) {
     params.set('ubication_id', String(filters.ubicationId))
-  }
+  } 
   if (filters.categoryId) {
     params.set('category_id', String(filters.categoryId))
   }
@@ -49,4 +49,18 @@ export async function downloadInventoryXlsx(filters: InventoryAdminFilters = {},
     `${BASE_PATH}/export/xlsx${query ? `?${query}` : ''}`,
     'inventario_admin.xlsx',
   )
+}
+
+export async function createInventoryTransfer(
+  payload: InventoryTransferPayload,
+): Promise<InventoryTransferResult> {
+  return apiFetch<InventoryTransferResult>(`${BASE_PATH}/documents/transfer`, {
+    method: 'POST',
+    body: JSON.stringify({
+      device_ids: payload.deviceIds,
+      target_ubication_id: payload.targetUbicationId,
+      reason: payload.reason,
+      observations: payload.observations,
+    }),
+  })
 }

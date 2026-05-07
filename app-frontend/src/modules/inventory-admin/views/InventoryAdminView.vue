@@ -4,11 +4,12 @@ import { useToast } from 'primevue/usetoast'
 
 import type { Category, Status, Ubication } from '@/types/catalog.types'
 import type { Device } from '@/types/device.types'
-import type { InventoryAdminFilters, InventoryDashboard } from '@/types/inventory-admin.types'
+import type { InventoryAdminFilters, InventoryDashboard, InventoryTransferPayload } from '@/types/inventory-admin.types'
 
 import { getCategories, getStatuses, getUbications } from '@/services/catalog.service'
-import { getInventoryDashboard, getInventoryDevices, downloadInventoryXlsx } from '@/services/inventory-admin.service'
+import { getInventoryDashboard, getInventoryDevices, downloadInventoryXlsx, createInventoryTransfer } from '@/services/inventory-admin.service'
 import DeviceStatusBadge from '@/components/ui/DevicesStatusBadge.vue'
+import InventoryTransferDrawer from '@/modules/inventory-admin/components/InventoryTransferDrawer.vue'
 
 const toast = useToast()
 
@@ -30,6 +31,9 @@ const filters = ref<InventoryAdminFilters>({
   ubicationId: null,
   categoryId: null,
 })
+
+const showTransferDrawer = ref(false)
+const transferring = ref(false)
 
 function clearSelection() {
   selectedDevices.value = []
@@ -118,6 +122,66 @@ async function handleExportXlsx() {
     })
   } finally {
     exportingXlsx.value = false
+  }
+}
+
+function openTransferDrawer() {
+  showTransferDrawer.value = true
+}
+
+function closeTransferDrawer() {
+  showTransferDrawer.value = false
+}
+
+async function handleTransfer(payload: Omit<InventoryTransferPayload, 'deviceIds'>) {
+  if (selectedDevices.value.length === 0) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Sin selección',
+      detail: 'Debes seleccionar al menos un dispositivo.',
+      life: 3000,
+    })
+    return
+  }
+
+  if (!payload.targetUbicationId) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Campo requerido',
+      detail: 'Debes seleccionar una ubicación destino.',
+      life: 3000,
+    })
+    return
+  }
+
+  transferring.value = true
+  try {
+    const result = await createInventoryTransfer({
+      deviceIds: selectedDevices.value.map(device => device.id),
+      targetUbicationId: payload.targetUbicationId,
+      reason: payload.reason || null,
+      observations: payload.observations || null,
+    })
+
+    toast.add({
+      severity: 'success',
+      summary: 'Traslado realizado',
+      detail: `Se trasladaron ${result.updatedDevices} dispositivo(s).`,
+      life: 4000,
+    })
+
+    closeTransferDrawer()
+    clearSelection()
+    await refreshAll()
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudo registrar el traslado.',
+      life: 4000,
+    })
+  } finally {
+    transferring.value = false
   }
 }
 
@@ -267,6 +331,14 @@ onMounted(async () => {
             @click="handleExportXlsx"
             :loading="exportingXlsx"
           />
+          <Button
+            label="Trasladar seleccionados"
+            icon="pi pi-send"
+            severity="info"
+            outlined
+            :disabled="selectedDevices.length === 0"
+            @click="openTransferDrawer"
+          />
         </div>
 
         <div class="flex items-center justify-between mb-4">
@@ -329,5 +401,13 @@ onMounted(async () => {
         </DataTable>
       </template>
     </Card>
+
+    <InventoryTransferDrawer
+      v-model="showTransferDrawer"
+      :ubications="ubications"
+      :selected-count="selectedDevices.length"
+      :loading="transferring"
+      @submit="handleTransfer"
+    />
   </div>
 </template>
