@@ -84,6 +84,13 @@ class InventoryAdminService:
 
         target_ubication = self.repository.get_or_create_ubication_by_name(target_name)
 
+        already_in_target = [device.id for device in devices if device.ubication_id == target_ubication.id]
+
+        if already_in_target:
+            raise ValueError(
+                f"Los siguientes dispositivos ya están en la ubicación destino: {already_in_target}"
+            )
+
         unique_source_ids = {device.ubication_id for device in devices if device.ubication_id is not None}
         source_ubication_id = next(iter(unique_source_ids)) if len(unique_source_ids) == 1 else None
 

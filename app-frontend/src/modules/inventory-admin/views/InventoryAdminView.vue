@@ -144,11 +144,11 @@ async function handleTransfer(payload: Omit<InventoryTransferPayload, 'deviceIds
     return
   }
 
-  if (!payload.targetUbicationName) {
+  if (!payload.targetUbicationName?.trim()) {
     toast.add({
       severity: 'warn',
       summary: 'Campo requerido',
-      detail: 'Debes seleccionar una ubicación destino.',
+      detail: 'Debes ingresar una ubicación destino.',
       life: 3000,
     })
     return
@@ -158,11 +158,10 @@ async function handleTransfer(payload: Omit<InventoryTransferPayload, 'deviceIds
   try {
     const result = await createInventoryTransfer({
       deviceIds: selectedDevices.value.map(device => device.id),
-      targetUbicationName: payload.targetUbicationName,
+      targetUbicationName: payload.targetUbicationName.trim(),
       reason: payload.reason || null,
       observations: payload.observations || null,
     })
-    await downloadTransferPdf(result.documentId)
 
     toast.add({
       severity: 'success',
@@ -173,7 +172,21 @@ async function handleTransfer(payload: Omit<InventoryTransferPayload, 'deviceIds
 
     closeTransferDrawer()
     clearSelection()
+
+    await loadCatalogs()
     await refreshAll()
+
+    // si falla el PDF, no debe marcar como fallo del traslado
+    try {
+      await downloadTransferPdf(result.documentId)
+    } catch {
+      toast.add({
+        severity: 'warn',
+        summary: 'PDF no disponible',
+        detail: 'El traslado se registró correctamente, pero no se pudo descargar el PDF.',
+        life: 5000,
+      })
+    }
   } catch {
     toast.add({
       severity: 'error',
