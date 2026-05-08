@@ -9,7 +9,7 @@ from pathlib import Path
 from app.models.inventory import AdministrativeDocument
 
 
-TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "transfer"
+TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "writeoff"
 TEMPLATE_FILE = TEMPLATE_DIR / "main.tex"
 
 
@@ -48,7 +48,7 @@ def build_device_rows(document: AdministrativeDocument) -> str:
                     latex_escape(device.get("product")),
                     latex_escape(device.get("internal_code")),
                     latex_escape(device.get("serial_number")),
-                    latex_escape(device.get("status")),
+                    latex_escape(device.get("status_before")),
                     latex_escape(device.get("source_ubication")),
                 ]
             )
@@ -58,12 +58,11 @@ def build_device_rows(document: AdministrativeDocument) -> str:
     return "\n".join(rows) if rows else r"Sin datos & — & — & — & — \\ \hline"
 
 
-def render_transfer_tex(document: AdministrativeDocument) -> str:
+def render_writeoff_tex(document: AdministrativeDocument) -> str:
     template = TEMPLATE_FILE.read_text(encoding="utf-8")
     generated_at = document.generated_at.astimezone(timezone.utc)
 
     source_name = document.source_ubication.name if document.source_ubication else "Múltiples ubicaciones"
-    target_name = document.target_ubication.name if document.target_ubication else "—"
 
     content = template
     content = content.replace("@@DATE@@", generated_at.strftime("%d/%m/%Y"))
@@ -73,7 +72,6 @@ def render_transfer_tex(document: AdministrativeDocument) -> str:
         latex_escape(document.generated_by_user.name if document.generated_by_user else "—"),
     )
     content = content.replace("@@SOURCE_UBICATION@@", latex_escape(source_name))
-    content = content.replace("@@TARGET_UBICATION@@", latex_escape(target_name))
     content = content.replace("@@REASON@@", latex_escape(document.reason))
     content = content.replace("@@OBSERVATIONS@@", latex_escape(document.observations))
     content = content.replace("@@DEVICE_ROWS@@", build_device_rows(document))
@@ -89,7 +87,7 @@ def _copy_images(workdir: Path) -> None:
     if not logo_umag.exists():
         raise RuntimeError(
             f"No se encontró el logo requerido: {logo_umag}. "
-            "Debes copiar logo_umag.png a templates/transfer/images/."
+            "Debes copiar logo_umag.png a templates/writeoff/images/."
         )
 
     shutil.copy2(logo_umag, target_images / "logo_umag.png")
@@ -125,18 +123,16 @@ def compile_latex_to_pdf(workdir: Path) -> bytes:
     )
 
 
-def build_transfer_pdf(document: AdministrativeDocument) -> bytes:
+def build_writeoff_pdf(document: AdministrativeDocument) -> bytes:
     if not TEMPLATE_FILE.exists():
-        raise RuntimeError(
-            f"No se encontró la plantilla LaTeX: {TEMPLATE_FILE}"
-        )
+        raise RuntimeError(f"No se encontró la plantilla LaTeX: {TEMPLATE_FILE}")
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         workdir = Path(tmp_dir)
 
         _copy_images(workdir)
 
-        rendered = render_transfer_tex(document)
+        rendered = render_writeoff_tex(document)
         (workdir / "main.tex").write_text(rendered, encoding="utf-8")
 
         return compile_latex_to_pdf(workdir)

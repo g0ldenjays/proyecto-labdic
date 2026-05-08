@@ -7,7 +7,7 @@ import type { Device } from '@/types/device.types'
 import type { InventoryAdminFilters, InventoryDashboard, InventoryTransferPayload, InventoryWriteoffPayload } from '@/types/inventory-admin.types'
 
 import { getCategories, getStatuses, getUbications } from '@/services/catalog.service'
-import { getInventoryDashboard, getInventoryDevices, downloadInventoryXlsx, createInventoryTransfer, downloadTransferPdf, createInventoryWriteoff } from '@/services/inventory-admin.service'
+import { getInventoryDashboard, getInventoryDevices, downloadInventoryXlsx, createInventoryTransfer, downloadTransferPdf, createInventoryWriteoff, downloadWriteoffPdf } from '@/services/inventory-admin.service'
 import DeviceStatusBadge from '@/components/ui/DevicesStatusBadge.vue'
 import InventoryTransferDrawer from '@/modules/inventory-admin/components/InventoryTransferDrawer.vue'
 import InventoryWriteoffDrawer from '@/modules/inventory-admin/components/InventoryWriteoffDrawer.vue'
@@ -240,6 +240,17 @@ async function handleWriteoff(payload: Omit<InventoryWriteoffPayload, 'deviceIds
     closeWriteoffDrawer()
     clearSelection()
     await refreshAll()
+
+    try {
+      await downloadWriteoffPdf(result.documentId)
+    } catch {
+      toast.add({
+        severity: 'warn',
+        summary: 'PDF no disponible',
+        detail: 'La baja se registró correctamente, pero no se pudo descargar el PDF.',
+        life: 5000,
+      })
+    }
   } catch {
     toast.add({
       severity: 'error',

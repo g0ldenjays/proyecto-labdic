@@ -91,3 +91,10 @@ export async function createInventoryWriteoff(
     }),
   })
 }
+
+export async function downloadWriteoffPdf(documentId: number): Promise<void> {
+  await apiDownload(
+    `${BASE_PATH}/documents/${documentId}/writeoff/pdf`,
+    `baja_${documentId}.pdf`,
+  )
+}

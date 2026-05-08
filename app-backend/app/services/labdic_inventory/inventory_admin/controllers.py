@@ -124,3 +124,22 @@ class InventoryAdminController(Controller):
             )
         except ValueError as exc:
             raise ClientException(str(exc)) from exc
+        
+    @get("/documents/{document_id:int}/writeoff/pdf", summary="DownloadWriteoffPdf")
+    async def download_writeoff_pdf(
+        self,
+        document_id: int,
+        inventory_admin_service: InventoryAdminService,
+    ) -> Response[bytes]:
+        try:
+            pdf_bytes = inventory_admin_service.generate_writeoff_pdf(document_id)
+        except ValueError as exc:
+            raise ClientException(str(exc)) from exc
+
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="baja_{document_id}.pdf"'
+            },
+        )

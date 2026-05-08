@@ -1,0 +1,82 @@
+\documentclass[letterpaper,12pt]{article}
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fancyhdr}
+\usepackage[top=2cm, bottom=2.5cm, left=1.27cm, right=1.27cm]{geometry}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage[table]{xcolor}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{ragged2e}
+\usepackage{longtable}
+
+\setlength{\parindent}{0pt}
+\pagestyle{fancy}
+\fancyhf{}
+\setlength{\headsep}{2cm}
+\renewcommand{\headrule}{}
+
+\fancyhead[L]{%
+    \raisebox{-.5\height}{\includegraphics[height=2cm]{images/logo_umag.png}}%
+    \hspace{0.5cm}%
+    {\begin{minipage}[c]{0.45\textwidth}
+        {Depto. De Ingeniería en Computación}\\
+        {Universidad de Magallanes}\\
+        {Punta Arenas, Chile}
+    \end{minipage}}%
+    \hfill
+    {\begin{minipage}[c]{0.28\textwidth}
+        \begin{tabular}{l@{\hspace{1em}}r}
+            \multicolumn{2}{l}{\textbf{Laboratorio de Computación}}\\
+            Fecha: & \textbf{@@DATE@@}\\
+            Orden: & \textbf{@@ORDER@@}
+        \end{tabular}
+    \end{minipage}}%
+}
+
+\cfoot{\thepage}
+
+\begin{document}
+
+\begin{center}
+    \LARGE\textbf{Memorándum interno de baja de dispositivos}
+\end{center}
+
+\vspace{0.3cm}
+
+El presente documento deja constancia de la baja administrativa de dispositivos del Laboratorio de Computación.
+
+\vspace{0.4cm}
+
+\begin{tabular}{|p{0.32\textwidth}|p{0.6\textwidth}|}
+    \hline
+    \textbf{Responsable} & @@RESPONSIBLE_NAME@@ \\ \hline
+    \textbf{Ubicación origen} & @@SOURCE_UBICATION@@ \\ \hline
+    \textbf{Motivo} & @@REASON@@ \\ \hline
+\end{tabular}
+
+\vspace{0.5cm}
+
+\section*{Dispositivos dados de baja}
+
+\rowcolors{2}{gray!15}{}
+\begin{longtable}{|p{0.28\textwidth}|p{0.18\textwidth}|p{0.18\textwidth}|p{0.16\textwidth}|p{0.12\textwidth}|}
+    \hline
+    \rowcolor[HTML]{cccccc}
+    \textbf{Producto} &
+    \textbf{Código interno} &
+    \textbf{Serie} &
+    \textbf{Estado previo} &
+    \textbf{Origen} \\
+    \hline
+    @@DEVICE_ROWS@@
+\end{longtable}
+
+\vspace{0.2cm}
+
+\section*{Observaciones}
+@@OBSERVATIONS@@
+
+\end{document}

@@ -11,7 +11,7 @@ from .repositories import InventoryAdminRepository
 from collections.abc import Sequence
 from app.models.inventory import Device, AdministrativeDocument, AdministrativeDocumentItem
 from .exporters import build_inventory_xlsx
-from .documents import build_transfer_pdf
+from .documents import build_transfer_pdf, build_writeoff_pdf
 
 class InventoryAdminService:
     def __init__(self, session: Session) -> None:
@@ -222,3 +222,14 @@ class InventoryAdminService:
             document_id=document.id,
             updated_devices=len(devices),
         )
+    
+    def generate_writeoff_pdf(self, document_id: int) -> bytes:
+        document = self.repository.get_administrative_document_by_id(document_id)
+
+        if not document:
+            raise ValueError("El documento administrativo no existe.")
+
+        if document.document_type != "writeoff":
+            raise ValueError("El documento indicado no corresponde a una baja.")
+
+        return build_writeoff_pdf(document)
