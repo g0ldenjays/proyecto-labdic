@@ -1,7 +1,11 @@
 from sqlalchemy.orm import Session
 from .dtos import (
+    InventoryAlertsDTO,
     InventoryCountItem,
     InventoryDashboardDTO,
+    InventoryMaintenanceAlertItemDTO,
+    InventoryOverdueLoanAlertItemDTO,
+    InventoryOverdueLoanDeviceItemDTO,
     InventoryTransferCreateDTO,
     InventoryTransferResultDTO,
     InventoryWriteoffCreateDTO,
@@ -12,6 +16,9 @@ from collections.abc import Sequence
 from app.models.inventory import Device, AdministrativeDocument, AdministrativeDocumentItem
 from .exporters import build_inventory_xlsx
 from .documents import build_transfer_pdf, build_writeoff_pdf
+from datetime import datetime, timezone
+from app.config import settings
+
 
 class InventoryAdminService:
     def __init__(self, session: Session) -> None:
@@ -233,3 +240,71 @@ class InventoryAdminService:
             raise ValueError("El documento indicado no corresponde a una baja.")
 
         return build_writeoff_pdf(document)
+    
+    @staticmethod
+    def _ensure_aware(value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+    
+    def get_alerts(self) -> InventoryAlertsDTO:
+        now = datetime.now(timezone.utc)
+
+        maintenance_alert_days = settings.maintenance_alert_days
+        overdue_loan_alert_days = settings.overdue_loan_alert_days
+
+        prolonged_maintenance: list[InventoryMaintenanceAlertItemDTO] = []
+        for device, maintenance_since in self.repository.list_devices_in_maintenance():
+            base_date = self._ensure_aware(maintenance_since or device.created_at)
+            days_in_maintenance = max((now - base_date).days, 0)
+
+            if days_in_maintenance >= maintenance_alert_days:
+                prolonged_maintenance.append(
+                    InventoryMaintenanceAlertItemDTO(
+                        device_id=device.id,
+                        product_name=device.product.name if device.product else "—",
+                        internal_code=device.internal_code,
+                        serial_number=device.serial_number,
+                        ubication_name=device.ubication.name if device.ubication else None,
+                        maintenance_since=base_date.isoformat(),
+                        days_in_maintenance=days_in_maintenance,
+                    )
+                )
+
+        overdue_loans: list[InventoryOverdueLoanAlertItemDTO] = []
+        for loan in self.repository.list_overdue_loans():
+            if not loan.estimated_return_date:
+                continue
+
+            estimated_return_date = self._ensure_aware(loan.estimated_return_date)
+            days_overdue = max((now - estimated_return_date).days, 0)
+
+            if days_overdue >= overdue_loan_alert_days:
+                overdue_loans.append(
+                    InventoryOverdueLoanAlertItemDTO(
+                        loan_id=loan.id,
+                        user_name=loan.user.name if loan.user else "—",
+                        user_username=loan.user.username if loan.user else "—",
+                        estimated_return_date=estimated_return_date.isoformat(),
+                        days_overdue=days_overdue,
+                        devices=[
+                            InventoryOverdueLoanDeviceItemDTO(
+                                device_id=item.device.id,
+                                product_name=item.device.product.name if item.device and item.device.product else "—",
+                                internal_code=item.device.internal_code if item.device else None,
+                                serial_number=item.device.serial_number if item.device else None,
+                            )
+                            for item in loan.loan_request_items
+                        ],
+                    )
+                )
+
+        prolonged_maintenance.sort(key=lambda item: item.days_in_maintenance, reverse=True)
+        overdue_loans.sort(key=lambda item: item.days_overdue, reverse=True)
+
+        return InventoryAlertsDTO(
+            maintenance_alert_days=maintenance_alert_days,
+            overdue_loan_alert_days=overdue_loan_alert_days,
+            prolonged_maintenance=prolonged_maintenance,
+            overdue_loans=overdue_loans,
+        )

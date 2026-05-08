@@ -29,3 +29,34 @@ class InventoryWriteoffCreateDTO(Struct):
 class InventoryWriteoffResultDTO(Struct):
     document_id: int
     updated_devices: int
+
+class InventoryMaintenanceAlertItemDTO(Struct):
+    device_id: int
+    product_name: str
+    maintenance_since: str
+    days_in_maintenance: int
+    internal_code: str | None = None
+    serial_number: str | None = None
+    ubication_name: str | None = None
+
+class InventoryOverdueLoanDeviceItemDTO(Struct):
+    device_id: int
+    product_name: str
+    internal_code: str | None = None
+    serial_number: str | None = None
+
+
+class InventoryOverdueLoanAlertItemDTO(Struct):
+    loan_id: int
+    user_name: str
+    user_username: str
+    estimated_return_date: str
+    days_overdue: int
+    devices: list[InventoryOverdueLoanDeviceItemDTO]
+
+
+class InventoryAlertsDTO(Struct):
+    maintenance_alert_days: int
+    overdue_loan_alert_days: int
+    prolonged_maintenance: list[InventoryMaintenanceAlertItemDTO]
+    overdue_loans: list[InventoryOverdueLoanAlertItemDTO]

@@ -1,5 +1,6 @@
 import type {
   InventoryAdminFilters,
+  InventoryAlerts,
   InventoryDashboard,
   InventoryTransferPayload,
   InventoryTransferResult,
@@ -97,4 +98,8 @@ export async function downloadWriteoffPdf(documentId: number): Promise<void> {
     `${BASE_PATH}/documents/${documentId}/writeoff/pdf`,
     `baja_${documentId}.pdf`,
   )
+}
+
+export async function getInventoryAlerts(): Promise<InventoryAlerts> {
+  return apiFetch<InventoryAlerts>(`${BASE_PATH}/alerts`)
 }

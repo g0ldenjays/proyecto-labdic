@@ -39,3 +39,36 @@ export interface InventoryWriteoffResult {
   documentId: number
   updatedDevices: number
 }
+
+export interface InventoryMaintenanceAlertItem {
+  deviceId: number
+  productName: string
+  internalCode?: string | null
+  serialNumber?: string | null
+  ubicationName?: string | null
+  maintenanceSince: string
+  daysInMaintenance: number
+}
+
+export interface InventoryOverdueLoanDeviceItem {
+  deviceId: number
+  productName: string
+  internalCode?: string | null
+  serialNumber?: string | null
+}
+
+export interface InventoryOverdueLoanAlertItem {
+  loanId: number
+  userName: string
+  userUsername: string
+  estimatedReturnDate: string
+  daysOverdue: number
+  devices: InventoryOverdueLoanDeviceItem[]
+}
+
+export interface InventoryAlerts {
+  maintenanceAlertDays: number
+  overdueLoanAlertDays: number
+  prolongedMaintenance: InventoryMaintenanceAlertItem[]
+  overdueLoans: InventoryOverdueLoanAlertItem[]
+}

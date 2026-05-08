@@ -1,7 +1,8 @@
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
-from app.models.inventory import Category, Device, Product, Status, Ubication, AdministrativeDocument, AdministrativeDocumentItem
+from app.models.inventory import Category, Device, Product, Status, Ubication, AdministrativeDocument, AdministrativeDocumentItem, DeviceStatusLog, LoanRequest, LoanRequestItem
 from typing import Sequence
+from datetime import datetime, timezone
 
 
 class InventoryAdminRepository:
@@ -138,3 +139,58 @@ class InventoryAdminRepository:
     def get_status_by_name(self, status_name: str) -> Status | None:
         stmt = select(Status).where(func.lower(Status.name) == status_name.lower())
         return self.session.execute(stmt).scalar_one_or_none()
+    
+    def list_devices_in_maintenance(self) -> list[tuple[Device, datetime | None]]:
+        maintenance_status = self.get_status_by_name("en_mantenimiento")
+        if not maintenance_status:
+            return []
+
+        maintenance_since_subquery = (
+            select(func.max(DeviceStatusLog.timestamp))
+            .where(
+                DeviceStatusLog.device_id == Device.id,
+                DeviceStatusLog.status_id == maintenance_status.id,
+            )
+            .correlate(Device)
+            .scalar_subquery()
+        )
+
+        stmt = (
+            select(Device, maintenance_since_subquery.label("maintenance_since"))
+            .options(
+                selectinload(Device.product).selectinload(Product.category),
+                selectinload(Device.status),
+                selectinload(Device.ubication),
+            )
+            .where(Device.status_id == maintenance_status.id)
+            .order_by(Device.id.asc())
+        )
+
+        return list(self.session.execute(stmt).all())
+
+    def list_overdue_loans(self) -> list[LoanRequest]:
+        borrowed_status = self.get_status_by_name("prestado")
+        if not borrowed_status:
+            return []
+
+        now = datetime.now(timezone.utc)
+
+        stmt = (
+            select(LoanRequest)
+            .options(
+                selectinload(LoanRequest.user),
+                selectinload(LoanRequest.status),
+                selectinload(LoanRequest.loan_request_items)
+                    .selectinload(LoanRequestItem.device)
+                    .selectinload(Device.product),
+            )
+            .where(
+                LoanRequest.status_id == borrowed_status.id,
+                LoanRequest.actual_return_date.is_(None),
+                LoanRequest.estimated_return_date.is_not(None),
+                LoanRequest.estimated_return_date < now,
+            )
+            .order_by(LoanRequest.estimated_return_date.asc())
+        )
+
+        return list(self.session.execute(stmt).scalars().all())

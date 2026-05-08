@@ -4,12 +4,14 @@ from litestar.di import Provide
 from litestar.params import Parameter
 from sqlalchemy.orm import Session
 
-from .dtos import (InventoryDashboardDTO, 
-                   InventoryTransferCreateDTO, 
-                   InventoryTransferResultDTO, 
-                   InventoryWriteoffCreateDTO, 
-                   InventoryWriteoffResultDTO, 
-                   InventoryWriteoffResultDTO,)
+from .dtos import (
+    InventoryAlertsDTO,
+    InventoryDashboardDTO,
+    InventoryTransferCreateDTO,
+    InventoryTransferResultDTO,
+    InventoryWriteoffCreateDTO,
+    InventoryWriteoffResultDTO,
+)
 
 from .services import InventoryAdminService
 from app.models.inventory import Device
@@ -143,3 +145,10 @@ class InventoryAdminController(Controller):
                 "Content-Disposition": f'attachment; filename="baja_{document_id}.pdf"'
             },
         )
+    
+    @get("/alerts", summary="GetInventoryAdminAlerts")
+    async def get_alerts(
+        self,
+        inventory_admin_service: InventoryAdminService,
+    ) -> InventoryAlertsDTO:
+        return inventory_admin_service.get_alerts()
