@@ -1,5 +1,12 @@
 from sqlalchemy.orm import Session
-from .dtos import InventoryCountItem, InventoryDashboardDTO, InventoryTransferCreateDTO, InventoryTransferResultDTO
+from .dtos import (
+    InventoryCountItem,
+    InventoryDashboardDTO,
+    InventoryTransferCreateDTO,
+    InventoryTransferResultDTO,
+    InventoryWriteoffCreateDTO,
+    InventoryWriteoffResultDTO,
+)
 from .repositories import InventoryAdminRepository
 from collections.abc import Sequence
 from app.models.inventory import Device, AdministrativeDocument, AdministrativeDocumentItem
@@ -148,3 +155,70 @@ class InventoryAdminService:
             raise ValueError("El documento indicado no corresponde a un traslado.")
 
         return build_transfer_pdf(document)
+
+    def create_writeoff_document(
+        self,
+        data: InventoryWriteoffCreateDTO,
+        generated_by_user_id: int,
+    ) -> InventoryWriteoffResultDTO:
+        device_ids = list(dict.fromkeys(data.device_ids))
+
+        if not device_ids:
+            raise ValueError("Debes seleccionar al menos un dispositivo.")
+
+        devices = self.repository.get_devices_by_ids(device_ids)
+        if len(devices) != len(device_ids):
+            raise ValueError("Uno o más dispositivos no existen.")
+
+        writeoff_status = self.repository.get_status_by_name("de_baja")
+        if not writeoff_status:
+            raise ValueError("No existe el estado 'de_baja' en el sistema.")
+
+        already_writeoff = [device.id for device in devices if device.status_id == writeoff_status.id]
+        if already_writeoff:
+            raise ValueError(
+                f"Uno o más dispositivos ya están dados de baja: {already_writeoff}"
+            )
+
+        unique_source_ids = {device.ubication_id for device in devices if device.ubication_id is not None}
+        source_ubication_id = next(iter(unique_source_ids)) if len(unique_source_ids) == 1 else None
+
+        snapshot = {
+            "devices": [
+                {
+                    "id": device.id,
+                    "product": device.product.name if device.product else None,
+                    "internal_code": device.internal_code,
+                    "serial_number": device.serial_number,
+                    "status_before": device.status.name if device.status else None,
+                    "source_ubication": device.ubication.name if device.ubication else None,
+                }
+                for device in devices
+            ],
+        }
+
+        document = AdministrativeDocument(
+            document_type="writeoff",
+            generated_by_user_id=generated_by_user_id,
+            reason=data.reason,
+            observations=data.observations,
+            source_ubication_id=source_ubication_id,
+            target_ubication_id=None,
+            snapshot=snapshot,
+            items=[
+                AdministrativeDocumentItem(device_id=device.id)
+                for device in devices
+            ],
+        )
+
+        self.repository.add_administrative_document(document)
+
+        for device in devices:
+            device.status_id = writeoff_status.id
+
+        self.repository.commit()
+
+        return InventoryWriteoffResultDTO(
+            document_id=document.id,
+            updated_devices=len(devices),
+        )

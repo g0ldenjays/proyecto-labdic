@@ -28,3 +28,14 @@ export interface InventoryTransferResult {
   documentId: number
   updatedDevices: number
 }
+
+export interface InventoryWriteoffPayload {
+  deviceIds: number[]
+  reason?: string | null
+  observations?: string | null
+}
+
+export interface InventoryWriteoffResult {
+  documentId: number
+  updatedDevices: number
+}

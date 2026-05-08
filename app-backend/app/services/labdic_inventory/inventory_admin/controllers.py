@@ -4,7 +4,13 @@ from litestar.di import Provide
 from litestar.params import Parameter
 from sqlalchemy.orm import Session
 
-from .dtos import InventoryDashboardDTO, InventoryTransferCreateDTO, InventoryTransferResultDTO
+from .dtos import (InventoryDashboardDTO, 
+                   InventoryTransferCreateDTO, 
+                   InventoryTransferResultDTO, 
+                   InventoryWriteoffCreateDTO, 
+                   InventoryWriteoffResultDTO, 
+                   InventoryWriteoffResultDTO,)
+
 from .services import InventoryAdminService
 from app.models.inventory import Device
 from app.services.labdic_inventory.device.dtos import DeviceReadDTO
@@ -103,3 +109,18 @@ class InventoryAdminController(Controller):
                 "Content-Disposition": f'attachment; filename="traslado_{document_id}.pdf"'
             },
         )
+    
+    @post("/documents/writeoff", summary="CreateInventoryWriteoffDocument")
+    async def create_writeoff_document(
+        self,
+        data: InventoryWriteoffCreateDTO,
+        request: Request,
+        inventory_admin_service: InventoryAdminService,
+    ) -> InventoryWriteoffResultDTO:
+        try:
+            return inventory_admin_service.create_writeoff_document(
+                data=data,
+                generated_by_user_id=request.user.id,
+            )
+        except ValueError as exc:
+            raise ClientException(str(exc)) from exc

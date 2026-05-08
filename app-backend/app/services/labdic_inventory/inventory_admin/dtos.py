@@ -20,3 +20,12 @@ class InventoryTransferCreateDTO(Struct):
 class InventoryTransferResultDTO(Struct):
     document_id: int
     updated_devices: int
+
+class InventoryWriteoffCreateDTO(Struct):
+    device_ids: list[int]
+    reason: str | None = None
+    observations: str | None = None
+
+class InventoryWriteoffResultDTO(Struct):
+    document_id: int
+    updated_devices: int

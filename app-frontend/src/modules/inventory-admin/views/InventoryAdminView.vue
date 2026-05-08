@@ -4,12 +4,13 @@ import { useToast } from 'primevue/usetoast'
 
 import type { Category, Status, Ubication } from '@/types/catalog.types'
 import type { Device } from '@/types/device.types'
-import type { InventoryAdminFilters, InventoryDashboard, InventoryTransferPayload } from '@/types/inventory-admin.types'
+import type { InventoryAdminFilters, InventoryDashboard, InventoryTransferPayload, InventoryWriteoffPayload } from '@/types/inventory-admin.types'
 
 import { getCategories, getStatuses, getUbications } from '@/services/catalog.service'
-import { getInventoryDashboard, getInventoryDevices, downloadInventoryXlsx, createInventoryTransfer, downloadTransferPdf } from '@/services/inventory-admin.service'
+import { getInventoryDashboard, getInventoryDevices, downloadInventoryXlsx, createInventoryTransfer, downloadTransferPdf, createInventoryWriteoff } from '@/services/inventory-admin.service'
 import DeviceStatusBadge from '@/components/ui/DevicesStatusBadge.vue'
 import InventoryTransferDrawer from '@/modules/inventory-admin/components/InventoryTransferDrawer.vue'
+import InventoryWriteoffDrawer from '@/modules/inventory-admin/components/InventoryWriteoffDrawer.vue'
 
 const toast = useToast()
 
@@ -34,6 +35,9 @@ const filters = ref<InventoryAdminFilters>({
 
 const showTransferDrawer = ref(false)
 const transferring = ref(false)
+
+const showWriteoffDrawer = ref(false)
+const writingOff = ref(false)
 
 function clearSelection() {
   selectedDevices.value = []
@@ -199,6 +203,55 @@ async function handleTransfer(payload: Omit<InventoryTransferPayload, 'deviceIds
   }
 }
 
+function openWriteoffDrawer() {
+  showWriteoffDrawer.value = true
+}
+
+function closeWriteoffDrawer() {
+  showWriteoffDrawer.value = false
+}
+
+async function handleWriteoff(payload: Omit<InventoryWriteoffPayload, 'deviceIds'>) {
+  if (selectedDevices.value.length === 0) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Sin selección',
+      detail: 'Debes seleccionar al menos un dispositivo.',
+      life: 3000,
+    })
+    return
+  }
+
+  writingOff.value = true
+  try {
+    const result = await createInventoryWriteoff({
+      deviceIds: selectedDevices.value.map(device => device.id),
+      reason: payload.reason || null,
+      observations: payload.observations || null,
+    })
+
+    toast.add({
+      severity: 'success',
+      summary: 'Baja registrada',
+      detail: `Se dieron de baja ${result.updatedDevices} dispositivo(s).`,
+      life: 4000,
+    })
+
+    closeWriteoffDrawer()
+    clearSelection()
+    await refreshAll()
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudo registrar la baja.',
+      life: 4000,
+    })
+  } finally {
+    writingOff.value = false
+  }
+}
+
 onMounted(async () => {
   await loadCatalogs()
   await refreshAll()
@@ -346,12 +399,20 @@ onMounted(async () => {
             :loading="exportingXlsx"
           />
           <Button
-            label="Trasladar seleccionados"
+            label="Trasladar"
             icon="pi pi-send"
             severity="info"
             outlined
             :disabled="selectedDevices.length === 0"
             @click="openTransferDrawer"
+          />
+          <Button
+            label="Dar de baja"
+            icon="pi pi-trash"
+            severity="danger"
+            outlined
+            :disabled="selectedDevices.length === 0"
+            @click="openWriteoffDrawer"
           />
         </div>
 
@@ -422,6 +483,13 @@ onMounted(async () => {
       :selected-count="selectedDevices.length"
       :loading="transferring"
       @submit="handleTransfer"
+    />
+
+    <InventoryWriteoffDrawer
+      v-model="showWriteoffDrawer"
+      :devices="selectedDevices"
+      :loading="writingOff"
+      @submit="handleWriteoff"
     />
   </div>
 </template>

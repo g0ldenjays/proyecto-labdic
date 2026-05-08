@@ -134,3 +134,7 @@ class InventoryAdminRepository:
         self.session.add(ubication)
         self.session.flush()
         return ubication
+    
+    def get_status_by_name(self, status_name: str) -> Status | None:
+        stmt = select(Status).where(func.lower(Status.name) == status_name.lower())
+        return self.session.execute(stmt).scalar_one_or_none()

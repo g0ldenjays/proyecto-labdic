@@ -1,4 +1,11 @@
-import type { InventoryAdminFilters, InventoryDashboard, InventoryTransferPayload, InventoryTransferResult } from '@/types/inventory-admin.types'
+import type {
+  InventoryAdminFilters,
+  InventoryDashboard,
+  InventoryTransferPayload,
+  InventoryTransferResult,
+  InventoryWriteoffPayload,
+  InventoryWriteoffResult,
+} from '@/types/inventory-admin.types'
 import { apiFetch, apiDownload } from '@/services/api'
 import type { Device } from '@/types/device.types'
 
@@ -70,4 +77,17 @@ export async function downloadTransferPdf(documentId: number): Promise<void> {
     `${BASE_PATH}/documents/${documentId}/transfer/pdf`,
     `traslado_${documentId}.pdf`,
   )
+}
+
+export async function createInventoryWriteoff(
+  payload: InventoryWriteoffPayload,
+): Promise<InventoryWriteoffResult> {
+  return apiFetch<InventoryWriteoffResult>(`${BASE_PATH}/documents/writeoff`, {
+    method: 'POST',
+    body: JSON.stringify({
+      device_ids: payload.deviceIds,
+      reason: payload.reason,
+      observations: payload.observations,
+    }),
+  })
 }
