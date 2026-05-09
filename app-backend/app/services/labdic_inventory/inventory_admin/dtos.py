@@ -60,3 +60,18 @@ class InventoryAlertsDTO(Struct):
     overdue_loan_alert_days: int
     prolonged_maintenance: list[InventoryMaintenanceAlertItemDTO]
     overdue_loans: list[InventoryOverdueLoanAlertItemDTO]
+
+class AdministrativeDocumentListItemDTO(Struct):
+    id: int
+    document_type: str
+    generated_at: str
+    generated_by_user_name: str
+    items_count: int
+    source_ubication_name: str | None = None
+    target_ubication_name: str | None = None
+    reason: str | None = None
+    observations: str | None = None
+
+
+class AdministrativeDocumentListDTO(Struct):
+    items: list[AdministrativeDocumentListItemDTO]

@@ -5,6 +5,7 @@ from litestar.params import Parameter
 from sqlalchemy.orm import Session
 
 from .dtos import (
+    AdministrativeDocumentListDTO,
     InventoryAlertsDTO,
     InventoryDashboardDTO,
     InventoryTransferCreateDTO,
@@ -179,3 +180,10 @@ class InventoryAdminController(Controller):
         inventory_admin_service: InventoryAdminService,
     ) -> InventoryAlertsDTO:
         return inventory_admin_service.get_alerts()
+    
+    @get("/documents", summary="ListAdministrativeDocuments")
+    async def list_administrative_documents(
+        self,
+        inventory_admin_service: InventoryAdminService,
+    ) -> AdministrativeDocumentListDTO:
+        return inventory_admin_service.list_administrative_documents()

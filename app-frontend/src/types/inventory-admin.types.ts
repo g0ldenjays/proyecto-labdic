@@ -72,3 +72,19 @@ export interface InventoryAlerts {
   prolongedMaintenance: InventoryMaintenanceAlertItem[]
   overdueLoans: InventoryOverdueLoanAlertItem[]
 }
+
+export interface AdministrativeDocumentListItem {
+  id: number
+  documentType: string
+  generatedAt: string
+  generatedByUserName: string
+  sourceUbicationName?: string | null
+  targetUbicationName?: string | null
+  reason?: string | null
+  observations?: string | null
+  itemsCount: number
+}
+
+export interface AdministrativeDocumentList {
+  items: AdministrativeDocumentListItem[]
+}

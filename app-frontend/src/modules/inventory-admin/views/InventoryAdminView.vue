@@ -9,6 +9,7 @@ import type { Device } from '@/types/device.types'
 import { getCategories, getStatuses, getUbications } from '@/services/catalog.service'
 
 import type {
+  AdministrativeDocumentListItem,
   InventoryAdminFilters,
   InventoryAlerts,
   InventoryDashboard,
@@ -17,6 +18,7 @@ import type {
 } from '@/types/inventory-admin.types'
 
 import {
+  getAdministrativeDocuments,
   getInventoryDashboard,
   getInventoryDevices,
   getInventoryAlerts,
@@ -60,6 +62,10 @@ const exportingPdf = ref(false)
 
 const loadingAlerts = ref(false)
 const alerts = ref<InventoryAlerts | null>(null)
+
+const loadingDocuments = ref(false)
+const administrativeDocuments = ref<AdministrativeDocumentListItem[]>([])
+const downloadingDocumentId = ref<number | null>(null)
 
 function clearSelection() {
   selectedDevices.value = []
@@ -120,7 +126,7 @@ async function loadInventory() {
 }
 
 async function refreshAll() {
-  await Promise.all([loadDashboard(), loadInventory(), loadAlerts()])
+  await Promise.all([loadDashboard(), loadInventory(), loadAlerts(), loadAdministrativeDocuments(),])
 }
 
 function clearFilters() {
@@ -335,6 +341,54 @@ function mergeVisibleSelectionIntoSelected() {
   selectedDevices.value = [...keptFromOtherFilters, ...selectedFromCurrentFilter]
 }
 
+async function loadAdministrativeDocuments() {
+  loadingDocuments.value = true
+  try {
+    const result = await getAdministrativeDocuments()
+    administrativeDocuments.value = result.items
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudo cargar el historial de documentos administrativos.',
+      life: 4000,
+    })
+  } finally {
+    loadingDocuments.value = false
+  }
+}
+
+async function handleDownloadAdministrativeDocument(document: AdministrativeDocumentListItem) {
+  downloadingDocumentId.value = document.id
+  try {
+    if (document.documentType === 'transfer') {
+      await downloadTransferPdf(document.id)
+      return
+    }
+
+    if (document.documentType === 'writeoff') {
+      await downloadWriteoffPdf(document.id)
+      return
+    }
+
+    toast.add({
+      severity: 'warn',
+      summary: 'Tipo no soportado',
+      detail: 'No existe una descarga configurada para este tipo de documento.',
+      life: 4000,
+    })
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudo descargar el documento administrativo.',
+      life: 4000,
+    })
+  } finally {
+    downloadingDocumentId.value = null
+  }
+}
+
 onMounted(async () => {
   await loadCatalogs()
   await refreshAll()
@@ -521,6 +575,93 @@ onMounted(async () => {
                     </div>
                   </div>
                 </div>
+              </template>
+            </Card>
+          </div>
+        </AccordionContent>
+      </AccordionPanel>
+      <AccordionPanel value="documents">
+        <AccordionHeader>Documentos administrativos</AccordionHeader>
+        <AccordionContent>
+          <div class="pt-2">
+            <Card>
+              <template #content>
+                <DataTable
+                  :value="administrativeDocuments"
+                  :loading="loadingDocuments"
+                  dataKey="id"
+                  stripedRows
+                >
+                  <template #empty>
+                    <div class="text-center py-6 text-muted-color">
+                      No hay documentos administrativos registrados.
+                    </div>
+                  </template>
+
+                  <Column header="ID">
+                    <template #body="{ data }">
+                      #{{ data.id }}
+                    </template>
+                  </Column>
+
+                  <Column header="Tipo">
+                    <template #body="{ data }">
+                      <Tag
+                        :value="data.documentType === 'transfer' ? 'Traslado' : data.documentType === 'writeoff' ? 'Baja' : data.documentType"
+                        :severity="data.documentType === 'transfer' ? 'info' : data.documentType === 'writeoff' ? 'danger' : 'secondary'"
+                      />
+                    </template>
+                  </Column>
+
+                  <Column header="Fecha">
+                    <template #body="{ data }">
+                      {{ new Date(data.generatedAt).toLocaleString('es-CL') }}
+                    </template>
+                  </Column>
+
+                  <Column header="Responsable">
+                    <template #body="{ data }">
+                      {{ data.generatedByUserName }}
+                    </template>
+                  </Column>
+
+                  <Column header="Origen">
+                    <template #body="{ data }">
+                      {{ data.sourceUbicationName ?? '—' }}
+                    </template>
+                  </Column>
+
+                  <Column header="Destino">
+                    <template #body="{ data }">
+                      {{ data.targetUbicationName ?? '—' }}
+                    </template>
+                  </Column>
+
+                  <Column header="Dispositivos">
+                    <template #body="{ data }">
+                      {{ data.itemsCount }}
+                    </template>
+                  </Column>
+
+                  <Column header="Motivo">
+                    <template #body="{ data }">
+                      {{ data.reason ?? '—' }}
+                    </template>
+                  </Column>
+
+                  <Column header="Acciones" style="width: 10rem">
+                    <template #body="{ data }">
+                      <Button
+                        label="PDF"
+                        icon="pi pi-download"
+                        severity="secondary"
+                        text
+                        :loading="downloadingDocumentId === data.id"
+                        @click="handleDownloadAdministrativeDocument(data)"
+                      />
+                    </template>
+                  </Column>
+                </DataTable>
               </template>
             </Card>
           </div>

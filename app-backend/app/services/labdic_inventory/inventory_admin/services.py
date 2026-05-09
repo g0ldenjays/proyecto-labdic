@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
 from .dtos import (
+    AdministrativeDocumentListDTO,
+    AdministrativeDocumentListItemDTO,
     InventoryAlertsDTO,
     InventoryCountItem,
     InventoryDashboardDTO,
@@ -355,3 +357,23 @@ class InventoryAdminService:
             prolonged_maintenance=prolonged_maintenance,
             overdue_loans=overdue_loans,
         )
+
+    def list_administrative_documents(self) -> AdministrativeDocumentListDTO:
+        documents = self.repository.list_administrative_documents()
+
+        items = [
+            AdministrativeDocumentListItemDTO(
+                id=document.id,
+                document_type=document.document_type,
+                generated_at=self._ensure_aware(document.generated_at).isoformat(),
+                generated_by_user_name=document.generated_by_user.name if document.generated_by_user else "—",
+                source_ubication_name=document.source_ubication.name if document.source_ubication else None,
+                target_ubication_name=document.target_ubication.name if document.target_ubication else None,
+                reason=document.reason,
+                observations=document.observations,
+                items_count=len(document.items),
+            )
+            for document in documents
+        ]
+
+        return AdministrativeDocumentListDTO(items=items)

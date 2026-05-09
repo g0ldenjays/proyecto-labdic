@@ -1,4 +1,5 @@
 import type {
+  AdministrativeDocumentList,
   InventoryAdminFilters,
   InventoryAlerts,
   InventoryDashboard,
@@ -127,4 +128,8 @@ export async function downloadInventoryPdf(
 
 export async function getInventoryAlerts(): Promise<InventoryAlerts> {
   return apiFetch<InventoryAlerts>(`${BASE_PATH}/alerts`)
+}
+
+export async function getAdministrativeDocuments(): Promise<AdministrativeDocumentList> {
+  return apiFetch<AdministrativeDocumentList>(`${BASE_PATH}/documents`)
 }

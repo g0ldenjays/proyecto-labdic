@@ -202,3 +202,16 @@ class InventoryAdminRepository:
     def get_category_by_id(self, category_id: int) -> Category | None:
         stmt = select(Category).where(Category.id == category_id)
         return self.session.execute(stmt).scalar_one_or_none()
+    
+    def list_administrative_documents(self) -> list[AdministrativeDocument]:
+        stmt = (
+            select(AdministrativeDocument)
+            .options(
+                selectinload(AdministrativeDocument.generated_by_user),
+                selectinload(AdministrativeDocument.source_ubication),
+                selectinload(AdministrativeDocument.target_ubication),
+                selectinload(AdministrativeDocument.items),
+            )
+            .order_by(AdministrativeDocument.generated_at.desc(), AdministrativeDocument.id.desc())
+        )
+        return list(self.session.execute(stmt).scalars().all())
