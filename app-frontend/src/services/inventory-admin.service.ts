@@ -100,6 +100,31 @@ export async function downloadWriteoffPdf(documentId: number): Promise<void> {
   )
 }
 
+export async function downloadInventoryPdf(
+  filters: InventoryAdminFilters = {},
+): Promise<void> {
+  const params = new URLSearchParams()
+
+  if (filters.search?.trim()) {
+    params.set('search', filters.search.trim())
+  }
+  if (filters.statusId) {
+    params.set('status_id', String(filters.statusId))
+  }
+  if (filters.ubicationId) {
+    params.set('ubication_id', String(filters.ubicationId))
+  }
+  if (filters.categoryId) {
+    params.set('category_id', String(filters.categoryId))
+  }
+
+  const query = params.toString()
+  await apiDownload(
+    `${BASE_PATH}/export/pdf${query ? `?${query}` : ''}`,
+    'inventario_admin.pdf',
+  )
+}
+
 export async function getInventoryAlerts(): Promise<InventoryAlerts> {
   return apiFetch<InventoryAlerts>(`${BASE_PATH}/alerts`)
 }

@@ -15,7 +15,7 @@ from .repositories import InventoryAdminRepository
 from collections.abc import Sequence
 from app.models.inventory import Device, AdministrativeDocument, AdministrativeDocumentItem
 from .exporters import build_inventory_xlsx
-from .documents import build_transfer_pdf, build_writeoff_pdf
+from .documents import build_transfer_pdf, build_writeoff_pdf, build_inventory_report_pdf
 from datetime import datetime, timezone
 from app.config import settings
 
@@ -240,6 +240,53 @@ class InventoryAdminService:
             raise ValueError("El documento indicado no corresponde a una baja.")
 
         return build_writeoff_pdf(document)
+    
+    def _build_inventory_filter_labels(
+        self,
+        status_id: int | None = None,
+        ubication_id: int | None = None,
+        category_id: int | None = None,
+        search: str | None = None,
+    ) -> dict[str, str]:
+        status = self.repository.get_status_by_id(status_id) if status_id is not None else None
+        ubication = self.repository.get_ubication_by_id(ubication_id) if ubication_id is not None else None
+        category = self.repository.get_category_by_id(category_id) if category_id is not None else None
+
+        return {
+            "search": search.strip() if search and search.strip() else "Sin filtro",
+            "status": status.name if status else "Todos",
+            "ubication": ubication.name if ubication else "Todas",
+            "category": category.name if category else "Todas",
+        }
+
+    def generate_inventory_report_pdf(
+        self,
+        status_id: int | None = None,
+        ubication_id: int | None = None,
+        category_id: int | None = None,
+        search: str | None = None,
+    ) -> bytes:
+        devices = self.repository.list_inventory(
+            status_id=status_id,
+            ubication_id=ubication_id,
+            category_id=category_id,
+            search=search,
+        )
+
+        labels = self._build_inventory_filter_labels(
+            status_id=status_id,
+            ubication_id=ubication_id,
+            category_id=category_id,
+            search=search,
+        )
+
+        return build_inventory_report_pdf(
+            devices=devices,
+            search_label=labels["search"],
+            status_label=labels["status"],
+            ubication_label=labels["ubication"],
+            category_label=labels["category"],
+        )
     
     @staticmethod
     def _ensure_aware(value: datetime) -> datetime:

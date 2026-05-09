@@ -1,4 +1,4 @@
-\documentclass[letterpaper,12pt]{article}
+\documentclass[letterpaper,11pt]{article}
 \usepackage[spanish]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -8,15 +8,16 @@
 \usepackage{graphicx}
 \usepackage[table]{xcolor}
 \usepackage{colortbl}
-\usepackage{multirow}
-\usepackage{ragged2e}
 \usepackage{longtable}
+\usepackage{ragged2e}
 
 \setlength{\parindent}{0pt}
 \pagestyle{fancy}
 \fancyhf{}
 \setlength{\headsep}{2cm}
 \renewcommand{\headrule}{}
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
 
 \fancyhead[L]{%
     \raisebox{-.5\height}{\includegraphics[height=2cm]{images/logo_umag.png}}%
@@ -31,7 +32,6 @@
         \begin{tabular}{l@{\hspace{1em}}r}
             \multicolumn{2}{l}{\textbf{Laboratorio de Computación}}\\
             Fecha: & \textbf{@@DATE@@}\\
-            Orden: & \textbf{@@ORDER@@}
         \end{tabular}
     \end{minipage}}%
 }
@@ -41,42 +41,52 @@
 \begin{document}
 
 \begin{center}
-    \LARGE\textbf{Memorándum de baja de dispositivos}
+    \LARGE\textbf{Reporte general de inventario}
 \end{center}
 
 \vspace{0.3cm}
 
-El presente documento deja constancia de la baja administrativa de dispositivos del Laboratorio de Computación.
+Este documento presenta el inventario administrativo del Laboratorio de Computación.
 
 \vspace{0.4cm}
 
 \begin{tabular}{|p{0.32\textwidth}|p{0.6\textwidth}|}
     \hline
-    \textbf{Responsable} & @@RESPONSIBLE_NAME@@ \\ \hline
-    \textbf{Ubicación origen} & @@SOURCE_UBICATION@@ \\ \hline
-    \textbf{Motivo} & @@REASON@@ \\ \hline
+    \textbf{Total de dispositivos} & @@TOTAL_DEVICES@@ \\ \hline
 \end{tabular}
 
 \vspace{0.5cm}
 
-\section*{Dispositivos dados de baja}
+\section*{Filtros aplicados}
 
+\begin{tabular}{|p{0.25\textwidth}|p{0.67\textwidth}|}
+    \hline
+    \textbf{Búsqueda} & @@FILTER_SEARCH@@ \\ \hline
+    \textbf{Estado} & @@FILTER_STATUS@@ \\ \hline
+    \textbf{Ubicación} & @@FILTER_UBICATION@@ \\ \hline
+    \textbf{Categoría} & @@FILTER_CATEGORY@@ \\ \hline
+\end{tabular}
+
+\vspace{0.5cm}
+
+\section*{Dispositivos}
+
+{\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
 \rowcolors{2}{gray!15}{}
-\begin{longtable}{|p{0.28\textwidth}|p{0.18\textwidth}|p{0.18\textwidth}|p{0.16\textwidth}|p{0.12\textwidth}|}
+\begin{longtable}{|p{0.21\textwidth}|p{0.13\textwidth}|p{0.13\textwidth}|p{0.13\textwidth}|p{0.13\textwidth}|p{0.11\textwidth}|}
     \hline
     \rowcolor[HTML]{cccccc}
     \textbf{Producto} &
+    \textbf{Categoría} &
     \textbf{Código interno} &
     \textbf{Serie} &
-    \textbf{Estado previo} &
-    \textbf{Origen} \\
+    \textbf{Estado} &
+    \textbf{Ubicación} \\
     \hline
     @@DEVICE_ROWS@@
 \end{longtable}
-
-\vspace{0.2cm}
-
-\section*{Observaciones}
-@@OBSERVATIONS@@
+}
 
 \end{document}

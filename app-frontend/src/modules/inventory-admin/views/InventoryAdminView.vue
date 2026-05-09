@@ -25,6 +25,7 @@ import {
   downloadTransferPdf,
   createInventoryWriteoff,
   downloadWriteoffPdf,
+  downloadInventoryPdf,
 } from '@/services/inventory-admin.service'
 
 const toast = useToast()
@@ -36,6 +37,7 @@ const exportingXlsx = ref(false)
 const dashboard = ref<InventoryDashboard | null>(null)
 const devices = ref<Device[]>([])
 const selectedDevices = ref<Device[]>([])
+const visibleSelection = ref<Device[]>([])
 const openSections = ref([])
 
 const statuses = ref<Status[]>([])
@@ -54,12 +56,14 @@ const transferring = ref(false)
 
 const showWriteoffDrawer = ref(false)
 const writingOff = ref(false)
+const exportingPdf = ref(false)
 
 const loadingAlerts = ref(false)
 const alerts = ref<InventoryAlerts | null>(null)
 
 function clearSelection() {
   selectedDevices.value = []
+  visibleSelection.value = []
 }
 
 async function loadCatalogs() {
@@ -102,9 +106,7 @@ async function loadInventory() {
   loadingInventory.value = true
   try {
     devices.value = await getInventoryDevices(filters.value)
-
-    const visibleIds = new Set(devices.value.map(device => device.id))
-    selectedDevices.value = selectedDevices.value.filter(device => visibleIds.has(device.id))
+    syncVisibleSelectionFromSelected()
   } catch {
     toast.add({
       severity: 'error',
@@ -128,7 +130,6 @@ function clearFilters() {
     ubicationId: null,
     categoryId: null,
   }
-  clearSelection()
   loadInventory()
 }
 
@@ -194,7 +195,7 @@ async function handleTransfer(payload: Omit<InventoryTransferPayload, 'deviceIds
     })
 
     closeTransferDrawer()
-    clearSelection()
+    //clearSelection()
 
     await loadCatalogs()
     await refreshAll()
@@ -257,7 +258,7 @@ async function handleWriteoff(payload: Omit<InventoryWriteoffPayload, 'deviceIds
     })
 
     closeWriteoffDrawer()
-    clearSelection()
+    //clearSelection()
     await refreshAll()
 
     try {
@@ -282,6 +283,22 @@ async function handleWriteoff(payload: Omit<InventoryWriteoffPayload, 'deviceIds
   }
 }
 
+async function handleExportPdf() {
+  exportingPdf.value = true
+  try {
+    await downloadInventoryPdf(filters.value)
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudo exportar el inventario en PDF.',
+      life: 4000,
+    })
+  } finally {
+    exportingPdf.value = false
+  }
+}
+
 async function loadAlerts() {
   loadingAlerts.value = true
   try {
@@ -296,6 +313,26 @@ async function loadAlerts() {
   } finally {
     loadingAlerts.value = false
   }
+}
+
+function syncVisibleSelectionFromSelected() {
+  const selectedIds = new Set(selectedDevices.value.map(device => device.id))
+  visibleSelection.value = devices.value.filter(device => selectedIds.has(device.id))
+}
+
+function mergeVisibleSelectionIntoSelected() {
+  const currentVisibleIds = new Set(devices.value.map(device => device.id))
+  const selectedVisibleIds = new Set(visibleSelection.value.map(device => device.id))
+
+  const keptFromOtherFilters = selectedDevices.value.filter(
+    device => !currentVisibleIds.has(device.id),
+  )
+
+  const selectedFromCurrentFilter = devices.value.filter(
+    device => selectedVisibleIds.has(device.id),
+  )
+
+  selectedDevices.value = [...keptFromOtherFilters, ...selectedFromCurrentFilter]
 }
 
 onMounted(async () => {
@@ -528,44 +565,57 @@ onMounted(async () => {
           />
         </div>
 
-        <div class="flex gap-2 mb-4">
-          <Button
-            label="Aplicar filtros"
-            icon="pi pi-filter"
-            @click="loadInventory"
-            :loading="loadingInventory"
-          />
-          <Button
-            label="Limpiar"
-            icon="pi pi-times"
-            severity="secondary"
-            outlined
-            @click="clearFilters"
-          />
-          <Button
-            label="Exportar XLSX"
-            icon="pi pi-file-excel"
-            severity="success"
-            outlined
-            @click="handleExportXlsx"
-            :loading="exportingXlsx"
-          />
-          <Button
-            label="Trasladar"
-            icon="pi pi-send"
-            severity="info"
-            outlined
-            :disabled="selectedDevices.length === 0"
-            @click="openTransferDrawer"
-          />
-          <Button
-            label="Dar de baja"
-            icon="pi pi-trash"
-            severity="danger"
-            outlined
-            :disabled="selectedDevices.length === 0"
-            @click="openWriteoffDrawer"
-          />
+        <div class="flex justify-between items-start mb-4">
+          <div class="flex gap-2">
+            <Button
+              label="Aplicar filtros"
+              icon="pi pi-filter"
+              @click="loadInventory"
+              :loading="loadingInventory"
+            />
+            <Button
+              label="Limpiar"
+              icon="pi pi-times"
+              severity="secondary"
+              outlined
+              @click="clearFilters"
+            />
+          </div>
+
+          <div class="flex gap-2">
+            <Button
+              label="Exportar XLSX"
+              icon="pi pi-file-excel"
+              severity="success"
+              outlined
+              @click="handleExportXlsx"
+              :loading="exportingXlsx"
+            />
+            <Button
+              label="Exportar PDF"
+              icon="pi pi-file-pdf"
+              severity="danger"
+              outlined
+              @click="handleExportPdf"
+              :loading="exportingPdf"
+            />
+            <Button
+              label="Trasladar"
+              icon="pi pi-send"
+              severity="info"
+              outlined
+              :disabled="selectedDevices.length === 0"
+              @click="openTransferDrawer"
+            />
+            <Button
+              label="Dar de baja"
+              icon="pi pi-trash"
+              severity="danger"
+              outlined
+              :disabled="selectedDevices.length === 0"
+              @click="openWriteoffDrawer"
+            />
+          </div>
         </div>
 
         <div class="flex items-center justify-between mb-4">
@@ -583,7 +633,7 @@ onMounted(async () => {
           />
         </div>
 
-        <DataTable v-model:selection="selectedDevices" :value="devices" :loading="loadingInventory" dataKey="id" stripedRows>
+        <DataTable v-model:selection="visibleSelection" :value="devices" dataKey="id" stripedRows @update:selection="mergeVisibleSelectionIntoSelected">
           <template #empty>
             <div class="text-center py-6 text-muted-color">No hay dispositivos para mostrar.</div>
           </template>

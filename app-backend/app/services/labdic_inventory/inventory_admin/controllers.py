@@ -146,6 +146,33 @@ class InventoryAdminController(Controller):
             },
         )
     
+    @get("/export/pdf", summary="ExportInventoryAdminPdf")
+    async def export_inventory_pdf(
+        self,
+        inventory_admin_service: InventoryAdminService,
+        status_id: Optional[int] = Parameter(query="status_id", default=None, required=False),
+        ubication_id: Optional[int] = Parameter(query="ubication_id", default=None, required=False),
+        category_id: Optional[int] = Parameter(query="category_id", default=None, required=False),
+        search: Optional[str] = Parameter(query="search", default=None, required=False),
+    ) -> Response[bytes]:
+        try:
+            content = inventory_admin_service.generate_inventory_report_pdf(
+                status_id=status_id,
+                ubication_id=ubication_id,
+                category_id=category_id,
+                search=search,
+            )
+        except RuntimeError as exc:
+            raise ClientException(str(exc)) from exc
+
+        return Response(
+            content=content,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": 'attachment; filename="inventario_admin.pdf"'
+            },
+        )
+    
     @get("/alerts", summary="GetInventoryAdminAlerts")
     async def get_alerts(
         self,
