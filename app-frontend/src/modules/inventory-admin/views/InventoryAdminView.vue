@@ -11,7 +11,6 @@ import { getCategories, getStatuses, getUbications } from '@/services/catalog.se
 import type {
   AdministrativeDocumentListItem,
   InventoryAdminFilters,
-  InventoryAlerts,
   InventoryDashboard,
   InventoryTransferPayload,
   InventoryWriteoffPayload,
@@ -21,7 +20,6 @@ import {
   getAdministrativeDocuments,
   getInventoryDashboard,
   getInventoryDevices,
-  getInventoryAlerts,
   downloadInventoryXlsx,
   createInventoryTransfer,
   downloadTransferPdf,
@@ -59,9 +57,6 @@ const transferring = ref(false)
 const showWriteoffDrawer = ref(false)
 const writingOff = ref(false)
 const exportingPdf = ref(false)
-
-const loadingAlerts = ref(false)
-const alerts = ref<InventoryAlerts | null>(null)
 
 const loadingDocuments = ref(false)
 const administrativeDocuments = ref<AdministrativeDocumentListItem[]>([])
@@ -126,7 +121,7 @@ async function loadInventory() {
 }
 
 async function refreshAll() {
-  await Promise.all([loadDashboard(), loadInventory(), loadAlerts(), loadAdministrativeDocuments(),])
+  await Promise.all([loadDashboard(), loadInventory(), loadAdministrativeDocuments(),])
 }
 
 function clearFilters() {
@@ -305,22 +300,6 @@ async function handleExportPdf() {
   }
 }
 
-async function loadAlerts() {
-  loadingAlerts.value = true
-  try {
-    alerts.value = await getInventoryAlerts()
-  } catch {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No se pudieron cargar las alertas del inventario.',
-      life: 4000,
-    })
-  } finally {
-    loadingAlerts.value = false
-  }
-}
-
 function syncVisibleSelectionFromSelected() {
   const selectedIds = new Set(selectedDevices.value.map(device => device.id))
   visibleSelection.value = devices.value.filter(device => selectedIds.has(device.id))
@@ -412,7 +391,7 @@ onMounted(async () => {
           icon="pi pi-refresh"
           severity="secondary"
           @click="refreshAll"
-          :loading="loadingDashboard || loadingInventory || loadingAlerts"
+          :loading="loadingDashboard || loadingInventory"
         />
 
         <div class="inventory-kpi">
@@ -490,96 +469,6 @@ onMounted(async () => {
         </AccordionContent>
       </AccordionPanel>
 
-      <AccordionPanel value="alerts">
-        <AccordionHeader>Alertas</AccordionHeader>
-        <AccordionContent>
-          <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 pt-2">
-            <Card>
-              <template #title>Mantención prolongada</template>
-              <template #subtitle>
-                {{ alerts?.maintenanceAlertDays ?? 0 }}+ días en mantención
-              </template>
-
-              <template #content>
-                <div v-if="loadingAlerts" class="text-surface-500">Cargando alertas...</div>
-
-                <div
-                  v-else-if="!alerts?.prolongedMaintenance?.length"
-                  class="text-sm text-surface-500"
-                >
-                  No hay dispositivos en mantención prolongada.
-                </div>
-
-                <div v-else class="flex flex-col gap-3">
-                  <div
-                    v-for="item in alerts?.prolongedMaintenance ?? []"
-                    :key="item.deviceId"
-                    class="border rounded p-3 flex flex-col gap-1"
-                  >
-                    <div class="font-medium">{{ item.productName }}</div>
-                    <div class="text-sm text-surface-500">
-                      {{ item.internalCode ?? 'Sin código' }} · {{ item.serialNumber ?? 'Sin serie' }}
-                    </div>
-                    <div class="text-sm text-surface-500">
-                      Ubicación: {{ item.ubicationName ?? '—' }}
-                    </div>
-                    <Tag :value="`${item.daysInMaintenance} día(s)`" severity="warn" />
-                  </div>
-                </div>
-              </template>
-            </Card>
-
-            <Card>
-              <template #title>Préstamos vencidos</template>
-
-              <template #content>
-                <div v-if="loadingAlerts" class="text-surface-500">Cargando alertas...</div>
-
-                <div
-                  v-else-if="!alerts?.overdueLoans?.length"
-                  class="text-sm text-surface-500"
-                >
-                  No hay préstamos vencidos.
-                </div>
-
-                <div v-else class="flex flex-col gap-3">
-                  <div
-                    v-for="loan in alerts?.overdueLoans ?? []"
-                    :key="loan.loanId"
-                    class="border rounded p-3 flex flex-col gap-2"
-                  >
-                    <div class="font-medium">
-                      Solicitud #{{ loan.loanId }} · {{ loan.userName }}
-                    </div>
-
-                    <div class="text-sm text-surface-500">
-                      @{{ loan.userUsername }}
-                    </div>
-
-                    <div class="text-sm text-surface-500">
-                      Vencimiento: {{ new Date(loan.estimatedReturnDate).toLocaleDateString('es-CL') }}
-                    </div>
-
-                    <Tag :value="`${loan.daysOverdue} día(s) de atraso`" severity="danger" />
-
-                    <div class="flex flex-col gap-1 mt-1">
-                      <span class="text-sm font-medium">Dispositivos:</span>
-                      <ul class="text-sm text-surface-600 pl-4 list-disc">
-                        <li
-                          v-for="device in loan.devices"
-                          :key="device.deviceId"
-                        >
-                          {{ device.productName }} — {{ device.internalCode ?? 'Sin código' }}
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </Card>
-          </div>
-        </AccordionContent>
-      </AccordionPanel>
       <AccordionPanel value="documents">
         <AccordionHeader>Documentos administrativos</AccordionHeader>
         <AccordionContent>

@@ -6,12 +6,17 @@ import { useUserStore } from '@/stores/user.store'
 import { getProducts } from '@/services/product.service'
 import { getDevices, getAvailableDevices } from '@/services/device.service'
 import { getLoans, getMyLoans } from '@/services/loan.service'
+import { getInventoryAlerts } from '@/services/inventory-admin.service'
+import type { InventoryAlerts } from '@/types/inventory-admin.types'
 
 const router    = useRouter()
 const toast     = useToast()
 const userStore = useUserStore()
 
 const loading = ref(false)
+
+const loadingAlerts = ref(false)
+const alerts = ref<InventoryAlerts | null>(null)
 
 // ── Métricas ──────────────────────────────────────────────────────────
 const totalProducts       = ref(0)
@@ -52,7 +57,30 @@ async function loadMetrics() {
   }
 }
 
-onMounted(loadMetrics)
+async function loadAlerts() {
+  if (!userStore.isAdmin) return
+
+  loadingAlerts.value = true
+  try {
+    alerts.value = await getInventoryAlerts()
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudieron cargar las alertas del inventario.',
+      life: 3000,
+    })
+  } finally {
+    loadingAlerts.value = false
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([
+    loadMetrics(),
+    loadAlerts(),
+  ])
+})
 </script>
 
 <template>
@@ -139,6 +167,113 @@ onMounted(loadMetrics)
           </div>
         </div>
 
+      </div>
+
+      <!-- Alertas admin -->
+      <div class="admin-alerts">
+        <h2 class="section-title">Alertas</h2>
+
+        <div class="alerts-grid">
+          <div class="alert-card">
+            <div class="alert-card-header">
+              <div class="alert-icon maintenance">
+                <i class="pi pi-wrench" />
+              </div>
+
+              <div>
+                <h3 class="alert-title">Mantención prolongada</h3>
+                <p class="alert-subtitle">
+                  {{ alerts?.maintenanceAlertDays ?? 0 }}+ días en mantención
+                </p>
+              </div>
+            </div>
+
+            <div v-if="loadingAlerts" class="alert-empty">
+              Cargando alertas...
+            </div>
+
+            <div
+              v-else-if="!alerts?.prolongedMaintenance?.length"
+              class="alert-empty"
+            >
+              No hay dispositivos en mantención prolongada.
+            </div>
+
+            <div v-else class="alert-list">
+              <div
+                v-for="item in alerts?.prolongedMaintenance ?? []"
+                :key="item.deviceId"
+                class="alert-item"
+              >
+                <div class="alert-item-main">
+                  <span class="alert-item-title">{{ item.productName }}</span>
+                  <span class="alert-item-detail">
+                    {{ item.internalCode ?? 'Sin código' }} · {{ item.serialNumber ?? 'Sin serie' }}
+                  </span>
+                  <span class="alert-item-detail">
+                    Ubicación: {{ item.ubicationName ?? '—' }}
+                  </span>
+                </div>
+
+                <Tag
+                  :value="`${item.daysInMaintenance} día(s)`"
+                  severity="warn"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="alert-card">
+            <div class="alert-card-header">
+              <div class="alert-icon overdue">
+                <i class="pi pi-exclamation-triangle" />
+              </div>
+
+              <div>
+                <h3 class="alert-title">Préstamos vencidos</h3>
+                <p class="alert-subtitle">
+                  Solicitudes con fecha de devolución vencida
+                </p>
+              </div>
+            </div>
+
+            <div v-if="loadingAlerts" class="alert-empty">
+              Cargando alertas...
+            </div>
+
+            <div
+              v-else-if="!alerts?.overdueLoans?.length"
+              class="alert-empty"
+            >
+              No hay préstamos vencidos.
+            </div>
+
+            <div v-else class="alert-list">
+              <div
+                v-for="loan in alerts?.overdueLoans ?? []"
+                :key="loan.loanId"
+                class="alert-item"
+              >
+                <div class="alert-item-main">
+                  <span class="alert-item-title">
+                    Solicitud #{{ loan.loanId }} · {{ loan.userName }}
+                  </span>
+                  <span class="alert-item-detail">
+                    @{{ loan.userUsername }}
+                  </span>
+                  <span class="alert-item-detail">
+                    Vencimiento: {{ new Date(loan.estimatedReturnDate).toLocaleDateString('es-CL') }}
+                  </span>
+                </div>
+
+                <Tag
+                  :value="`${loan.daysOverdue} día(s)`"
+                  severity="danger"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Accesos rápidos admin -->
@@ -282,9 +417,111 @@ onMounted(loadMetrics)
 .section-title { font-size: 1rem; font-weight: 700; margin: 0; color: var(--p-text-muted-color); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.8rem; }
 .quick-grid { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 
+.admin-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.alerts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.alert-card {
+  padding: 1rem;
+  border-radius: 10px;
+  background: var(--p-surface-0, #ffffff);
+  border: 1px solid var(--p-surface-200, rgba(0,0,0,0.08));
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.alert-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.alert-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.alert-icon.maintenance {
+  background: #fef9c3;
+  color: #ca8a04;
+}
+
+.alert-icon.overdue {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.alert-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.alert-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+  color: var(--p-text-muted-color);
+}
+
+.alert-empty {
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color);
+  padding: 0.5rem 0;
+}
+
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.alert-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--p-surface-200, rgba(0,0,0,0.08));
+}
+
+.alert-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.alert-item-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.alert-item-detail {
+  font-size: 0.78rem;
+  color: var(--p-text-muted-color);
+}
+
 @media (max-width: 640px) {
   .metrics-grid { grid-template-columns: 1fr 1fr; }
   .welcome-title { font-size: 1.2rem; }
+  .alerts-grid { grid-template-columns: 1fr; }
 }
 .author-footer {
   margin-top: 1rem;
