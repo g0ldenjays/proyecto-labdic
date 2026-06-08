@@ -3,9 +3,12 @@ import { ref, onMounted, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import type { Product, ProductPayload } from '@/types/product.types'
-import type { Brand, ModelItem, Category } from '@/types/catalog.types'
+import type { Brand, ModelItem, Category, Status, Ubication } from '@/types/catalog.types'
 import { getProducts, getProduct, createProduct, updateProduct, deleteProduct } from '@/services/product.service'
-import { getBrands, getModels, getCategories } from '@/services/catalog.service'
+import { getBrands, getModels, getCategories, getStatuses, getUbications } from '@/services/catalog.service'
+import type { DevicePayload } from '@/types/device.types'
+import { createDevice } from '@/services/device.service'
+import DeviceForm from '@/modules/components/DeviceForm.vue'
 
 const router = useRouter()
 const toast  = useToast()
@@ -29,12 +32,23 @@ async function loadProducts() {
 const brands     = ref<Brand[]>([])
 const models     = ref<ModelItem[]>([])
 const categories = ref<Category[]>([])
+const statuses = ref<Status[]>([])
+const ubications = ref<Ubication[]>([])
 
 async function loadCatalog() {
-  const [b, m, c] = await Promise.all([getBrands(), getModels(), getCategories()])
-  brands.value     = b
-  models.value     = m
+  const [b, m, c, s, u] = await Promise.all([
+    getBrands(),
+    getModels(),
+    getCategories(),
+    getStatuses(),
+    getUbications(),
+  ])
+
+  brands.value = b
+  models.value = m
   categories.value = c
+  statuses.value = s
+  ubications.value = u
 }
 
 // ── Drawer crear / editar ─────────────────────────────────────────────
@@ -167,14 +181,80 @@ async function handleDelete() {
   }
 }
 
+// ── Drawer agregar dispositivo desde producto ─────────────────────────
+const showDeviceDrawer = ref(false)
+const deviceSubmitting = ref(false)
+const selectedProductForDevice = ref<Product | null>(null)
+
+const emptyDeviceForm: DevicePayload = {
+  productId: 0,
+  statusId: 0,
+  internalCode: null,
+  serialNumber: null,
+  ubicationId: null,
+}
+
+const deviceInitialValues = ref<DevicePayload>({ ...emptyDeviceForm })
+
 // ── Navegación ────────────────────────────────────────────────────────
 function viewDetails(product: Product) {
   router.push({ name: 'admin-product-detail', params: { id: product.id } })
 }
 
 function addDevices(product: Product) {
-  // Fase 4 — redirige a la vista de devices filtrada por producto
-  router.push({ name: 'admin-devices', query: { product: product.id } })
+  selectedProductForDevice.value = product
+  deviceInitialValues.value = {
+    ...emptyDeviceForm,
+    productId: product.id,
+  }
+  showDeviceDrawer.value = true
+}
+
+// ── Submit de Dispositivo ──────────────────────────────────────────────
+async function handleCreateDeviceFromProduct(payload: DevicePayload) {
+  if (!selectedProductForDevice.value) return
+
+  const normalizedPayload: DevicePayload = {
+    productId: selectedProductForDevice.value.id,
+    statusId: payload.statusId,
+    internalCode: payload.internalCode || null,
+    serialNumber: payload.serialNumber || null,
+    ubicationId: payload.ubicationId || null,
+  }
+
+  if (!normalizedPayload.productId || !normalizedPayload.statusId) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Campos requeridos',
+      detail: 'El producto y el estado son obligatorios.',
+      life: 3000,
+    })
+    return
+  }
+
+  deviceSubmitting.value = true
+  try {
+    await createDevice(normalizedPayload)
+
+    toast.add({
+      severity: 'success',
+      summary: 'Dispositivo creado',
+      detail: `Se agregó un dispositivo a "${selectedProductForDevice.value.name}".`,
+      life: 3000,
+    })
+
+    showDeviceDrawer.value = false
+    selectedProductForDevice.value = null
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudo crear el dispositivo.',
+      life: 4000,
+    })
+  } finally {
+    deviceSubmitting.value = false
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────
@@ -355,6 +435,26 @@ onMounted(() => {
         </div>
 
       </form>
+    </Drawer>
+
+    <!-- Drawer agregar dispositivo desde producto -->
+    <Drawer
+      v-model:visible="showDeviceDrawer"
+      :header="`Nuevo dispositivo${selectedProductForDevice ? ` para ${selectedProductForDevice.name}` : ''}`"
+      position="right"
+      style="width: 440px"
+      :dismissable="!deviceSubmitting"
+    >
+      <DeviceForm
+        :initial-values="deviceInitialValues"
+        :statuses="statuses"
+        :ubications="ubications"
+        :submitting="deviceSubmitting"
+        :fixed-product-id="selectedProductForDevice?.id ?? null"
+        hide-product-field
+        @submit="handleCreateDeviceFromProduct"
+        @cancel="showDeviceDrawer = false"
+      />
     </Drawer>
 
     <!-- Dialog confirmación eliminación -->
