@@ -8,11 +8,10 @@ const config = computed(() => {
     case 'pendiente':
       return { label: 'Pendiente',  severity: 'warn' }
     case 'aprobado':
+    case 'prestado':
       return { label: 'Aprobado',   severity: 'success' }
     case 'rechazado':
       return { label: 'Rechazado',  severity: 'danger' }
-    case 'prestado':
-      return { label: 'Entregado',  severity: 'info' }
     case 'devuelto':
       return { label: 'Devuelto',   severity: 'secondary' }
     default:

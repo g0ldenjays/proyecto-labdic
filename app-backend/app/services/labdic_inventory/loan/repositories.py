@@ -77,9 +77,26 @@ class LoanRequestRepository(SQLAlchemySyncRepository[LoanRequest]):
         return self.get_with_relations(loan.id)
 
     def approve(self, loan_id: int) -> LoanRequest:
-        """Aprueba una solicitud de préstamo."""
-        status_id = self._get_status_id("aprobado")
-        self.get_and_update(id=loan_id, status_id=status_id, match_fields=["id"], auto_commit=True)
+        """Aprueba una solicitud y la deja inmediatamente en curso."""
+        prestado_id = self._get_status_id("prestado")
+
+        self.get_and_update(
+            id=loan_id,
+            status_id=prestado_id,
+            delivery_date=datetime.now(timezone.utc),
+            match_fields=["id"],
+        )
+
+        items = self.session.execute(
+            select(LoanRequestItem).where(LoanRequestItem.loan_request_id == loan_id)
+        ).scalars().all()
+
+        for item in items:
+            device = self.session.get(Device, item.device_id)
+            if device:
+                device.status_id = prestado_id
+
+        self.session.commit()
         return self.get_with_relations(loan_id)
 
     def reject(self, loan_id: int) -> LoanRequest:

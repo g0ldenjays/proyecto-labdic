@@ -3,7 +3,7 @@ import { ref, onMounted, type Ref } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { getDevice } from '@/services/device.service'
 import type { LoanRequest } from '@/types/loan.types'
-import { getLoans, getLoan, approveLoan, rejectLoan, deliverLoan, returnLoan, deleteLoan } from '@/services/loan.service'
+import { getLoans, getLoan, approveLoan, rejectLoan, returnLoan, deleteLoan } from '@/services/loan.service'
 import LoanStatusBadge from '@/components/ui/LoanStatusBadge.vue'
 
 const toast = useToast()
@@ -55,24 +55,28 @@ async function openDetail(loan: LoanRequest) {
 // ── Timeline ──────────────────────────────────────────────────────────
 function getTimeline(loan: LoanRequest) {
   const isRejected = loan.status.name === 'rechazado'
+  const isInCourse = ['aprobado', 'prestado', 'devuelto'].includes(loan.status.name)
+
   return [
-    { label: 'Solicitud enviada',
-      date:  loan.requestDate,
-      done:  true,
-      icon:  'pi pi-file-edit' },
-    { label: isRejected ? 'Solicitud rechazada' : 'Solicitud aprobada',
-      date:  null,
-      done:  ['aprobado', 'prestado', 'devuelto', 'rechazado'].includes(loan.status.name),
-      icon:  isRejected ? 'pi pi-times-circle' : 'pi pi-check-circle',
-      isReject: isRejected },
-    { label: 'Dispositivos entregados',
-      date:  loan.deliveryDate ?? null,
-      done:  ['prestado', 'devuelto'].includes(loan.status.name),
-      icon:  'pi pi-send' },
-    { label: 'Dispositivos devueltos',
-      date:  loan.actualReturnDate ?? null,
-      done:  loan.status.name === 'devuelto',
-      icon:  'pi pi-undo' },
+    {
+      label: 'Solicitud enviada',
+      date: loan.requestDate,
+      done: true,
+      icon: 'pi pi-file-edit',
+    },
+    {
+      label: isRejected ? 'Solicitud rechazada' : 'Préstamo en curso',
+      date: loan.deliveryDate ?? null,
+      done: isInCourse || isRejected,
+      icon: isRejected ? 'pi pi-times-circle' : 'pi pi-check-circle',
+      isReject: isRejected,
+    },
+    {
+      label: 'Dispositivos devueltos',
+      date: loan.actualReturnDate ?? null,
+      done: loan.status.name === 'devuelto',
+      icon: 'pi pi-undo',
+    },
   ]
 }
 
@@ -193,30 +197,37 @@ onMounted(loadLoans)
                 <Button icon="pi pi-eye" rounded text severity="info"
                   v-tooltip.top="'Ver detalle'" @click="openDetail(data)" />
 
-                <!-- pendiente → aprobar / rechazar -->
+                <!-- pendiente → aceptar / rechazar -->
                 <template v-if="data.status?.name === 'pendiente'">
-                  <Button icon="pi pi-check" rounded text severity="success"
-                    v-tooltip.top="'Aprobar'"
-                    @click="performAction(approveLoan, data.id, 'Solicitud aprobada.')" />
-                  <Button icon="pi pi-times" rounded text severity="danger"
+                  <Button
+                    icon="pi pi-check"
+                    rounded
+                    text
+                    severity="success"
+                    v-tooltip.top="'Aceptar y dejar en curso'"
+                    @click="performAction(approveLoan, data.id, 'Solicitud aceptada. Préstamo en curso.')"
+                  />
+
+                  <Button
+                    icon="pi pi-times"
+                    rounded
+                    text
+                    severity="danger"
                     v-tooltip.top="'Rechazar'"
-                    @click="performAction(rejectLoan, data.id, 'Solicitud rechazada.')" />
+                    @click="performAction(rejectLoan, data.id, 'Solicitud rechazada.')"
+                  />
                 </template>
 
-                <!-- aprobado → entregar -->
-                <Button v-if="data.status?.name === 'aprobado'"
-                  icon="pi pi-send" rounded text severity="help"
-                  v-tooltip.top="'Registrar entrega'"
-                  @click="performAction(deliverLoan, data.id, 'Entrega registrada.')" />
-
-                <!-- prestado → devolver -->
-                <Button v-if="data.status?.name === 'prestado'"
-                  icon="pi pi-undo" rounded text severity="secondary"
+                <!-- en curso → devolver -->
+                <Button
+                  v-if="['aprobado', 'prestado'].includes(data.status?.name)"
+                  icon="pi pi-undo"
+                  rounded
+                  text
+                  severity="secondary"
                   v-tooltip.top="'Registrar devolución'"
-                  @click="performAction(returnLoan, data.id, 'Devolución registrada.')" />
-
-                <Button icon="pi pi-trash" rounded text severity="danger"
-                  v-tooltip.top="'Eliminar'" @click="confirmDelete(data)" />
+                  @click="performAction(returnLoan, data.id, 'Devolución registrada.')"
+                />
 
               </div>
             </template>
@@ -274,23 +285,39 @@ onMounted(loadLoans)
         </div>
 
         <!-- Acciones desde drawer -->
-        <div v-if="['pendiente','aprobado','prestado'].includes(selectedLoan.status?.name)" class="drawer-actions">
-          <Button v-if="selectedLoan.status?.name === 'pendiente'"
-            label="Aprobar" icon="pi pi-check" severity="success" size="small"
+        <div
+          v-if="['pendiente', 'aprobado', 'prestado'].includes(selectedLoan.status?.name)"
+          class="drawer-actions"
+        >
+          <Button
+            v-if="selectedLoan.status?.name === 'pendiente'"
+            label="Aceptar"
+            icon="pi pi-check"
+            severity="success"
+            size="small"
             :loading="actionLoading"
-            @click="performAction(approveLoan, selectedLoan.id, 'Solicitud aprobada.')" />
-          <Button v-if="selectedLoan.status?.name === 'pendiente'"
-            label="Rechazar" icon="pi pi-times" severity="danger" outlined size="small"
+            @click="performAction(approveLoan, selectedLoan.id, 'Solicitud aceptada. Préstamo en curso.')"
+          />
+
+          <Button
+            v-if="selectedLoan.status?.name === 'pendiente'"
+            label="Rechazar"
+            icon="pi pi-times"
+            severity="danger"
+            outlined
+            size="small"
             :loading="actionLoading"
-            @click="performAction(rejectLoan, selectedLoan.id, 'Solicitud rechazada.')" />
-          <Button v-if="selectedLoan.status?.name === 'aprobado'"
-            label="Registrar entrega" icon="pi pi-send" severity="help" size="small"
+            @click="performAction(rejectLoan, selectedLoan.id, 'Solicitud rechazada.')"
+          />
+
+          <Button
+            v-if="['aprobado', 'prestado'].includes(selectedLoan.status?.name)"
+            label="Registrar devolución"
+            icon="pi pi-undo"
+            size="small"
             :loading="actionLoading"
-            @click="performAction(deliverLoan, selectedLoan.id, 'Entrega registrada.')" />
-          <Button v-if="selectedLoan.status?.name === 'prestado'"
-            label="Registrar devolución" icon="pi pi-undo" size="small"
-            :loading="actionLoading"
-            @click="performAction(returnLoan, selectedLoan.id, 'Devolución registrada.')" />
+            @click="performAction(returnLoan, selectedLoan.id, 'Devolución registrada.')"
+          />
         </div>
 
         <!-- Timeline -->
@@ -303,7 +330,7 @@ onMounted(loadLoans)
               <span class="timeline-label">{{ step.label }}</span>
               <span v-if="step.date" class="timeline-date">{{ formatDate(step.date) }}</span>
             </div>
-            <div v-if="idx < 3" class="timeline-line" />
+            <div v-if="idx < getTimeline(selectedLoan).length - 1" class="timeline-line" />
           </div>
         </div>
 
