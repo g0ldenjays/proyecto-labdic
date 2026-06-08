@@ -1,6 +1,6 @@
 <!-- src/modules/devices/components/DeviceForm.vue -->
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { DevicePayload } from '@/types/device.types'
 import type { Product } from '@/types/product.types'
 import type { Status, Ubication } from '@/types/catalog.types'
@@ -14,12 +14,14 @@ const props = withDefaults(
     submitting?: boolean
     fixedProductId?: number | null
     hideProductField?: boolean
+    mode?: 'create' | 'edit'
   }>(),
   {
     products: () => [],
     submitting: false,
     fixedProductId: null,
     hideProductField: false,
+    mode: 'create',
   },
 )
 
@@ -48,7 +50,37 @@ watch(
   { deep: true, immediate: true },
 )
 
+function normalizeDevicePayload(values: DevicePayload): DevicePayload {
+  return {
+    productId: props.fixedProductId ?? values.productId ?? 0,
+    statusId: values.statusId ?? 0,
+    internalCode: values.internalCode?.trim() || null,
+    serialNumber: values.serialNumber?.trim() || null,
+    ubicationId: values.ubicationId ?? null,
+  }
+}
+
+const normalizedInitialValues = computed(() => normalizeDevicePayload(props.initialValues))
+
+const normalizedCurrentValues = computed(() => normalizeDevicePayload(form.value))
+
+const hasChanges = computed(() => {
+  return JSON.stringify(normalizedCurrentValues.value) !== JSON.stringify(normalizedInitialValues.value)
+})
+
+const isEditMode = computed(() => props.mode === 'edit')
+
+const submitDisabled = computed(() => {
+  return props.submitting || (isEditMode.value && !hasChanges.value)
+})
+
+const submitLabel = computed(() => {
+  return isEditMode.value ? 'Guardar cambios' : 'Guardar'
+})
+
 function onSubmit() {
+  if (submitDisabled.value) return
+
   emit('submit', {
     ...form.value,
     productId: props.fixedProductId ?? form.value.productId,
@@ -129,7 +161,13 @@ function onSubmit() {
         :disabled="submitting"
         @click="emit('cancel')"
       />
-      <Button type="submit" label="Guardar" icon="pi pi-check" :loading="submitting" />
+      <Button
+        type="submit"
+        :label="submitLabel"
+        icon="pi pi-check"
+        :loading="submitting"
+        :disabled="submitDisabled"
+      />
     </div>
   </form>
 </template>

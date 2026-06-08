@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, type Ref } from 'vue'
+import { computed, ref, onMounted, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import type { Product, ProductPayload } from '@/types/product.types'
@@ -66,13 +66,45 @@ const emptyForm: ProductPayload = {
   categoryId: null, description: '', isActive: true,
 }
 const drawerForm = ref<ProductPayload>({ ...emptyForm })
+const drawerInitialValues = ref<ProductPayload>({ ...emptyForm })
+
+function normalizeProductPayload(values: ProductPayload): ProductPayload {
+  return {
+    name: values.name?.trim() || '',
+    brandId: values.brandId ?? null,
+    modelId: values.modelId ?? null,
+    categoryId: values.categoryId ?? null,
+    description: values.description?.trim() || '',
+    isActive: values.isActive,
+  }
+}
+
+const normalizedInitialProductValues = computed(() =>
+  normalizeProductPayload(drawerInitialValues.value),
+)
+
+const normalizedCurrentProductValues = computed(() =>
+  normalizeProductPayload(drawerForm.value),
+)
+
+const hasProductChanges = computed(() => {
+  return (
+    JSON.stringify(normalizedCurrentProductValues.value)
+    !== JSON.stringify(normalizedInitialProductValues.value)
+  )
+})
+
+const submitDisabled = computed(() => {
+  return submitting.value || (drawerMode.value === 'edit' && !hasProductChanges.value)
+})
 
 function openCreateDrawer() {
-  drawerMode.value  = 'create'
-  editingId.value   = null
+  drawerMode.value = 'create'
+  editingId.value = null
   deviceCount.value = 0
-  drawerForm.value  = { ...emptyForm }
-  showDrawer.value  = true
+  drawerInitialValues.value = { ...emptyForm }
+  drawerForm.value = { ...emptyForm }
+  showDrawer.value = true
 }
 
 async function openEditDrawer(product: Product) {
@@ -83,17 +115,19 @@ async function openEditDrawer(product: Product) {
 
   try {
     const p = await getProduct(product.id)
-    drawerForm.value = {
-      name:        p.name,
-      brandId:     p.brand?.id ?? null,
-      modelId:     p.model?.id ?? null,
-      categoryId:  p.category?.id ?? null,
+    const initialValues: ProductPayload = {
+      name: p.name,
+      brandId: p.brand?.id ?? null,
+      modelId: p.model?.id ?? null,
+      categoryId: p.category?.id ?? null,
       description: p.description ?? '',
-      isActive:    p.isActive,
+      isActive: p.isActive,
     }
-    // Obtenemos el conteo de devices del producto ya cargado en lista
-    // (lo calculamos desde la lista local si está disponible)
-    deviceCount.value = 0 // se muestra solo como referencia, no es crítico aquí
+
+    drawerInitialValues.value = { ...initialValues }
+    drawerForm.value = { ...initialValues }
+
+    deviceCount.value = 0
   } catch {
     toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar el producto.', life: 4000 })
     showDrawer.value = false
@@ -103,39 +137,31 @@ async function openEditDrawer(product: Product) {
 }
 
 async function handleSubmit() {
+  if (submitDisabled.value) return
+
   if (!drawerForm.value.name.trim()) {
     toast.add({ severity: 'warn', summary: 'Campo requerido', detail: 'El nombre del producto es obligatorio.', life: 3000 })
     return
   }
 
+  const payload: ProductPayload = {
+    ...normalizedCurrentProductValues.value,
+    description: normalizedCurrentProductValues.value.description || undefined,
+  }
+
   submitting.value = true
   try {
     if (drawerMode.value === 'create') {
-    const payload: ProductPayload = {
-      name:        drawerForm.value.name,
-      description: drawerForm.value.description || undefined,
-      isActive:    drawerForm.value.isActive,
-      brandId:     drawerForm.value.brandId    ?? null,
-      modelId:     drawerForm.value.modelId    ?? null,
-      categoryId:  drawerForm.value.categoryId ?? null,
-    }
-    const newProduct = await createProduct(payload)
+      const newProduct = await createProduct(payload)
       products.value.push(newProduct)
       toast.add({ severity: 'success', summary: 'Producto creado', detail: `"${newProduct.name}" agregado correctamente.`, life: 3000 })
     } else {
-    const payload: ProductPayload = {
-      name:        drawerForm.value.name,
-      description: drawerForm.value.description || undefined,
-      isActive:    drawerForm.value.isActive,
-      brandId:     drawerForm.value.brandId    ?? null,
-      modelId:     drawerForm.value.modelId    ?? null,
-      categoryId:  drawerForm.value.categoryId ?? null,
-    }
-    const updated = await updateProduct(editingId.value!, payload)
+      const updated = await updateProduct(editingId.value!, payload)
       const idx = products.value.findIndex(p => p.id === editingId.value)
       if (idx !== -1) products.value[idx] = updated
       toast.add({ severity: 'success', summary: 'Producto actualizado', detail: `"${updated.name}" actualizado correctamente.`, life: 3000 })
     }
+
     showDrawer.value = false
   } catch {
     toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo completar la operación.', life: 4000 })
@@ -431,7 +457,13 @@ onMounted(() => {
         <!-- Botones -->
         <div class="flex justify-end gap-2 mt-2">
           <Button type="button" label="Cancelar" severity="secondary" text :disabled="submitting" @click="showDrawer = false" />
-          <Button type="submit" :label="drawerMode === 'create' ? 'Crear producto' : 'Guardar cambios'" icon="pi pi-check" :loading="submitting" />
+          <Button
+            type="submit"
+            :label="drawerMode === 'create' ? 'Crear producto' : 'Guardar cambios'"
+            icon="pi pi-check"
+            :loading="submitting"
+            :disabled="submitDisabled"
+          />
         </div>
 
       </form>
@@ -451,6 +483,7 @@ onMounted(() => {
         :ubications="ubications"
         :submitting="deviceSubmitting"
         :fixed-product-id="selectedProductForDevice?.id ?? null"
+        mode="create"
         hide-product-field
         @submit="handleCreateDeviceFromProduct"
         @cancel="showDeviceDrawer = false"

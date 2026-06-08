@@ -347,6 +347,7 @@ onMounted(() => {
         :statuses="statuses"
         :ubications="ubications"
         :submitting="submitting"
+        :mode="drawerMode"
         @submit="handleSubmit"
         @cancel="showDrawer = false"
       />
