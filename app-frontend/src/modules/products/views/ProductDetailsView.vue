@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
-import type { Product } from '@/types/product.types'
+import type { Product, ProductPayload } from '@/types/product.types'
 import type { Device, DevicePayload } from '@/types/device.types'
-import { getProduct } from '@/services/product.service'
+import { getProduct, updateProduct } from '@/services/product.service'
 import { getDevicesByProduct, createDevice } from '@/services/device.service'
 import DeviceForm from '@/modules/components/DeviceForm.vue'
-import type { Status, Ubication } from '@/types/catalog.types'
-import { getStatuses, getUbications } from '@/services/catalog.service'
+import type { Brand, Category, ModelItem, Status, Ubication } from '@/types/catalog.types'
+import { getBrands, getCategories, getModels, getStatuses, getUbications } from '@/services/catalog.service'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,6 +20,53 @@ const product = ref<Product | null>(null)
 const devices = ref<Device[]>([])
 const loadingProduct = ref(false)
 const loadingDevices = ref(false)
+
+const showDrawer = ref(false)
+const drawerLoading = ref(false)
+const submitting = ref(false)
+const editingId = ref<number | null>(null)
+
+const brands = ref<Brand[]>([])
+const models = ref<ModelItem[]>([])
+const categories = ref<Category[]>([])
+
+const emptyForm: ProductPayload = {
+  name: '',
+  brandId: null,
+  modelId: null,
+  categoryId: null,
+  description: '',
+  isActive: true,
+}
+
+const drawerForm = ref<ProductPayload>({ ...emptyForm })
+const drawerInitialValues = ref<ProductPayload>({ ...emptyForm })
+
+function normalizeProductPayload(values: ProductPayload): ProductPayload {
+  return {
+    name: values.name?.trim() || '',
+    brandId: values.brandId ?? null,
+    modelId: values.modelId ?? null,
+    categoryId: values.categoryId ?? null,
+    description: values.description?.trim() || '',
+    isActive: values.isActive,
+  }
+}
+
+const normalizedInitialProductValues = computed(() =>
+  normalizeProductPayload(drawerInitialValues.value),
+)
+
+const normalizedCurrentProductValues = computed(() =>
+  normalizeProductPayload(drawerForm.value),
+)
+
+const hasProductChanges = computed(() =>
+  JSON.stringify(normalizedCurrentProductValues.value) !==
+  JSON.stringify(normalizedInitialProductValues.value),
+)
+
+const submitDisabled = computed(() => submitting.value || !hasProductChanges.value)
 
 const showAddDeviceDialog = ref(false)
 const submittingDevice = ref(false)
@@ -54,6 +101,23 @@ async function loadDeviceAuxData() {
   }
 }
 
+async function loadCatalog() {
+  try {
+    const [b, m, c] = await Promise.all([
+      getBrands(),
+      getModels(),
+      getCategories(),
+    ])
+    brands.value = b
+    models.value = m
+    categories.value = c
+  } catch {
+    brands.value = []
+    models.value = []
+    categories.value = []
+  }
+}
+
 async function loadDevices() {
   loadingDevices.value = true
   try {
@@ -66,6 +130,80 @@ async function loadDevices() {
   }
 }
 
+function openEditDrawer() {
+  if (!product.value) return
+
+  editingId.value = product.value.id
+  drawerLoading.value = true
+  showDrawer.value = true
+
+  const initialValues: ProductPayload = {
+    name: product.value.name,
+    brandId: product.value.brand?.id ?? null,
+    modelId: product.value.model?.id ?? null,
+    categoryId: product.value.category?.id ?? null,
+    description: product.value.description ?? '',
+    isActive: product.value.isActive,
+  }
+
+  drawerInitialValues.value = { ...initialValues }
+  drawerForm.value = { ...initialValues }
+  drawerLoading.value = false
+}
+
+async function handleUpdateProduct() {
+  if (!product.value || !editingId.value) return
+
+  if (!drawerForm.value.name.trim()) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Campo requerido',
+      detail: 'El nombre del producto es obligatorio.',
+      life: 3000,
+    })
+    return
+  }
+
+  const payload: ProductPayload = {
+    ...normalizedCurrentProductValues.value,
+    description: normalizedCurrentProductValues.value.description || undefined,
+  }
+
+  submitting.value = true
+  try {
+    const updated = await updateProduct(editingId.value, payload)
+    product.value = updated
+
+    drawerInitialValues.value = {
+      name: updated.name,
+      brandId: updated.brand?.id ?? null,
+      modelId: updated.model?.id ?? null,
+      categoryId: updated.category?.id ?? null,
+      description: updated.description ?? '',
+      isActive: updated.isActive,
+    }
+    drawerForm.value = { ...drawerInitialValues.value }
+
+    toast.add({
+      severity: 'success',
+      summary: 'Producto actualizado',
+      detail: `"${updated.name}" actualizado correctamente.`,
+      life: 3000,
+    })
+
+    showDrawer.value = false
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudo actualizar el producto.',
+      life: 4000,
+    })
+  } finally {
+    submitting.value = false
+  }
+}
+
 function addDevices() {
   showAddDeviceDialog.value = true
 }
@@ -75,6 +213,7 @@ onMounted(() => {
     router.push({ name: 'admin-products' })
     return
   }
+  loadCatalog()
   loadProduct()
   loadDeviceAuxData()
   loadDevices()
@@ -160,7 +299,7 @@ async function handleCreateDevice(payload: DevicePayload) {
               severity="secondary"
               outlined
               size="small"
-              @click="router.push({ name: 'admin-products' })"
+              @click="openEditDrawer"
             />
           </div>
         </template>
@@ -257,6 +396,99 @@ async function handleCreateDevice(payload: DevicePayload) {
         </template>
       </Card>
 
+      <!-- Drawer editar producto -->
+      <Drawer
+        v-model:visible="showDrawer"
+        header="Editar producto"
+        position="right"
+        style="width: 440px"
+        :dismissable="!submitting"
+      >
+        <div v-if="drawerLoading" class="py-12 text-center text-muted-color">
+          <i class="pi pi-spin pi-spinner text-2xl" />
+          <p class="mt-2">Cargando datos...</p>
+        </div>
+
+        <form v-else class="flex flex-col gap-4" @submit.prevent="handleUpdateProduct">
+          <div class="flex flex-col gap-1">
+            <label class="font-medium">Nombre <span class="text-red-400">*</span></label>
+            <InputText v-model.trim="drawerForm.name" :disabled="submitting" />
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="font-medium">Descripción</label>
+            <Textarea v-model="drawerForm.description" rows="3" :disabled="submitting" />
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="font-medium">Marca</label>
+            <Select
+              v-model="drawerForm.brandId"
+              :options="brands"
+              optionLabel="name"
+              optionValue="id"
+              placeholder="Selecciona una marca"
+              showClear
+              :disabled="submitting"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="font-medium">Modelo</label>
+            <Select
+              v-model="drawerForm.modelId"
+              :options="models"
+              optionLabel="name"
+              optionValue="id"
+              placeholder="Selecciona un modelo"
+              showClear
+              :disabled="submitting"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="font-medium">Categoría</label>
+            <Select
+              v-model="drawerForm.categoryId"
+              :options="categories"
+              optionLabel="name"
+              optionValue="id"
+              placeholder="Selecciona una categoría"
+              showClear
+              :disabled="submitting"
+            />
+          </div>
+
+          <div class="flex items-center gap-2">
+            <ToggleSwitch v-model="drawerForm.isActive" :disabled="submitting" />
+            <label class="font-medium">Producto activo</label>
+          </div>
+
+          <div class="devices-counter">
+            <i class="pi pi-server" />
+            <span>Este producto puede tener dispositivos asociados. Adminístralos desde "Ver detalles".</span>
+          </div>
+
+          <div class="flex justify-end gap-2 mt-2">
+            <Button
+              type="button"
+              label="Cancelar"
+              severity="secondary"
+              text
+              :disabled="submitting"
+              @click="showDrawer = false"
+            />
+            <Button
+              type="submit"
+              label="Guardar cambios"
+              icon="pi pi-check"
+              :loading="submitting"
+              :disabled="submitDisabled"
+            />
+          </div>
+        </form>
+      </Drawer>
+
       <!-- Dialogo para agregar dispositivo -->
       <Dialog
         v-model:visible="showAddDeviceDialog"
@@ -318,5 +550,16 @@ async function handleCreateDevice(payload: DevicePayload) {
 }
 .detail-value {
   font-size: 0.875rem;
+}
+.devices-counter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  background: var(--p-surface-50, rgba(0, 0, 0, 0.03));
+  border: 1px solid var(--p-surface-200, rgba(0, 0, 0, 0.08));
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--p-text-muted-color);
 }
 </style>
