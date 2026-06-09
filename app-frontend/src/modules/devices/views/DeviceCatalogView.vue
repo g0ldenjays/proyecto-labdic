@@ -55,6 +55,13 @@ async function loadData() {
 const filterCategory = ref<number | null>(null)
 const filterSearch = ref('')
 
+const categoryFilterOptions = computed(() =>
+  categories.value.map((category) => ({
+    ...category,
+    count: devices.value.filter((device) => device.product?.categoryId === category.id).length,
+  })),
+)
+
 const filteredDevices = computed(() => {
   let result = devices.value
   if (filterCategory.value) {
@@ -283,13 +290,20 @@ onMounted(loadData)
           />
           <Select
             v-model="filterCategory"
-            :options="categories"
+            :options="categoryFilterOptions"
             optionLabel="name"
             optionValue="id"
             placeholder="Todas las categorías"
             showClear
             class="filter-category"
-          />
+          >
+            <template #option="{ option }">
+              <div class="filter-option">
+                <span>{{ option.name }}</span>
+                <span class="filter-option-count">{{ option.count }}</span>
+              </div>
+            </template>
+          </Select>
           <Button
             v-if="filterCategory || filterSearch"
             label="Limpiar"
@@ -563,6 +577,23 @@ onMounted(loadData)
 }
 .filter-category {
   width: 200px;
+}
+.filter-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+.filter-option-count {
+  min-width: 2.25rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 0.65rem;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--p-surface-200, #e5e7eb);
+  color: var(--p-text-color);
 }
 .results-info {
   font-size: 0.875rem;

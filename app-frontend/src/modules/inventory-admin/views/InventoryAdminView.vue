@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import DeviceStatusBadge from '@/components/ui/DevicesStatusBadge.vue'
 import InventoryTransferDrawer from '@/modules/inventory-admin/components/InventoryTransferDrawer.vue'
@@ -48,6 +48,34 @@ const filters = ref<InventoryAdminFilters>({
   ubicationId: null,
   categoryId: null,
 })
+
+function getDashboardCount(
+  items: { label: string; count: number }[] | undefined,
+  label: string,
+) {
+  return items?.find(item => item.label === label)?.count ?? 0
+}
+
+const statusFilterOptions = computed(() =>
+  statuses.value.map(status => ({
+    ...status,
+    count: getDashboardCount(dashboard.value?.byStatus, status.name),
+  })),
+)
+
+const ubicationFilterOptions = computed(() =>
+  ubications.value.map(ubication => ({
+    ...ubication,
+    count: getDashboardCount(dashboard.value?.byUbication, ubication.name),
+  })),
+)
+
+const categoryFilterOptions = computed(() =>
+  categories.value.map(category => ({
+    ...category,
+    count: getDashboardCount(dashboard.value?.byCategory, category.name),
+  })),
+)
 
 const showTransferDrawer = ref(false)
 const transferring = ref(false)
@@ -356,66 +384,6 @@ onMounted(async () => {
       </div>
     </div>
 
-    <Accordion v-model:value="openSections" multiple>
-      <AccordionPanel value="grouped-view">
-        <AccordionHeader>Vista agrupada</AccordionHeader>
-        <AccordionContent>
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-2">
-            <Card>
-              <template #title>Por estado</template>
-              <template #content>
-                <div v-if="loadingDashboard" class="text-surface-500">Cargando...</div>
-                <div v-else class="flex flex-col gap-3">
-                  <div
-                    v-for="item in dashboard?.byStatus ?? []"
-                    :key="item.label"
-                    class="flex items-center justify-between"
-                  >
-                    <span>{{ item.label }}</span>
-                    <Tag :value="String(item.count)" severity="secondary" />
-                  </div>
-                </div>
-              </template>
-            </Card>
-
-            <Card>
-              <template #title>Por ubicación</template>
-              <template #content>
-                <div v-if="loadingDashboard" class="text-surface-500">Cargando...</div>
-                <div v-else class="flex flex-col gap-3">
-                  <div
-                    v-for="item in dashboard?.byUbication ?? []"
-                    :key="item.label"
-                    class="flex items-center justify-between"
-                  >
-                    <span>{{ item.label }}</span>
-                    <Tag :value="String(item.count)" severity="secondary" />
-                  </div>
-                </div>
-              </template>
-            </Card>
-
-            <Card>
-              <template #title>Por categoría</template>
-              <template #content>
-                <div v-if="loadingDashboard" class="text-surface-500">Cargando...</div>
-                <div v-else class="flex flex-col gap-3">
-                  <div
-                    v-for="item in dashboard?.byCategory ?? []"
-                    :key="item.label"
-                    class="flex items-center justify-between"
-                  >
-                    <span>{{ item.label }}</span>
-                    <Tag :value="String(item.count)" severity="secondary" />
-                  </div>
-                </div>
-              </template>
-            </Card>
-          </div>
-        </AccordionContent>
-      </AccordionPanel>
-    </Accordion>
-
     <Card>
       <template #title>Inventario administrativo</template>
       <template #content>
@@ -427,30 +395,51 @@ onMounted(async () => {
 
           <Select
             v-model="filters.statusId"
-            :options="statuses"
+            :options="statusFilterOptions"
             optionLabel="name"
             optionValue="id"
             placeholder="Estado"
             showClear
-          />
+          >
+            <template #option="{ option }">
+              <div class="filter-option">
+                <span>{{ option.name }}</span>
+                <span class="filter-option-count">{{ option.count }}</span>
+              </div>
+            </template>
+          </Select>
 
           <Select
             v-model="filters.ubicationId"
-            :options="ubications"
+            :options="ubicationFilterOptions"
             optionLabel="name"
             optionValue="id"
             placeholder="Ubicación"
             showClear
-          />
+          >
+            <template #option="{ option }">
+              <div class="filter-option">
+                <span>{{ option.name }}</span>
+                <span class="filter-option-count">{{ option.count }}</span>
+              </div>
+            </template>
+          </Select>
 
           <Select
             v-model="filters.categoryId"
-            :options="categories"
+            :options="categoryFilterOptions"
             optionLabel="name"
             optionValue="id"
             placeholder="Categoría"
             showClear
-          />
+          >
+            <template #option="{ option }">
+              <div class="filter-option">
+                <span>{{ option.name }}</span>
+                <span class="filter-option-count">{{ option.count }}</span>
+              </div>
+            </template>
+          </Select>
         </div>
 
         <div class="flex justify-between items-start mb-4">
@@ -624,4 +613,24 @@ onMounted(async () => {
   font-size: 1.6rem;
   font-weight: 700;
 }
+
+.filter-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.filter-option-count {
+  min-width: 2.25rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 0.65rem;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--p-surface-200, #e5e7eb);
+  color: var(--p-text-color);
+}
+
 </style>
