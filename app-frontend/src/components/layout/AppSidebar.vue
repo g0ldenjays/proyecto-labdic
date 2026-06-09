@@ -22,6 +22,7 @@ const adminItems = [
   { label: 'Préstamos', icon: 'pi pi-file-edit', name: 'admin-loans' },
   { label: 'Auxiliares', icon: 'pi pi-cog', name: 'admin-catalog' },
   { label: 'Admin de Inventario', icon: 'pi pi-chart-bar', name: 'inventory-admin' },
+  { label: 'Docs administrativos', icon: 'pi pi-file-pdf', name: 'administrative-documents' },
 ]
 
 const navItems = computed(() => {
