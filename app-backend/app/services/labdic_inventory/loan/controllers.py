@@ -58,9 +58,27 @@ class LoanRequestController(Controller):
         request: Request[User, Token, Any],
         loans_repo: LoanRequestRepository,
     ) -> LoanRequest:
-        """Crea una solicitud de préstamo."""
+        """Crea una solicitud de préstamo.
+        Si el usuario autenticado es administrador, puede crear la solicitud en nombre de otro usuario.
+        """
+        requested_user_id = data.requested_user_id
+
+        if requested_user_id is not None and not request.user.is_admin:
+            raise HTTPException(
+                status_code=403,
+                detail="Solo un administrador puede solicitar en nombre de otro usuario.",
+            )
+
+        target_user_id = requested_user_id or request.user.id
+
+        if not loans_repo.user_exists(target_user_id):
+            raise HTTPException(
+                status_code=400,
+                detail="El usuario solicitante no existe.",
+            )
+
         return loans_repo.create_with_items(
-            user_id=request.user.id,
+            user_id=target_user_id,
             device_ids=data.device_ids,
             reason=data.reason,
             estimated_return_date=data.estimated_return_date,

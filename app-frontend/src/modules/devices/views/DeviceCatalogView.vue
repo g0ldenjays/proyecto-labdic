@@ -6,23 +6,39 @@ import type { Device } from '@/types/device.types'
 import type { Category } from '@/types/catalog.types'
 import { getAvailableDevices } from '@/services/device.service'
 import { getCategories } from '@/services/catalog.service'
-import { createLoan, getMyLoans } from '@/services/loan.service'
+import { createLoan, getLoans, getMyLoans } from '@/services/loan.service'
 import DeviceStatusBadge from '@/components/ui/DevicesStatusBadge.vue'
+import { useUserStore } from '@/stores/user.store'
+import type { User } from '@/types/user.types'
+import { getUsers } from '@/services/user.service'
 
 const router = useRouter()
 const toast = useToast()
+const userStore = useUserStore()
 
 // ── Datos ─────────────────────────────────────────────────────────────
 const loading = ref(false)
 const devices = ref<Device[]>([])
 const categories = ref<Category[]>([])
+const users = ref<User[]>([])
+const selectedRequesterId = ref<number | null>(null)
 
 async function loadData() {
   loading.value = true
   try {
-    const [d, c] = await Promise.all([getAvailableDevices(), getCategories()])
+    const [d, c, u] = await Promise.all([
+      getAvailableDevices(),
+      getCategories(),
+      userStore.isAdmin ? getUsers() : Promise.resolve([]),
+    ])
+
     devices.value = d
     categories.value = c
+    users.value = u
+
+    if (userStore.isAdmin && !selectedRequesterId.value) {
+      selectedRequesterId.value = userStore.currentUser?.id ?? null
+    }
   } catch {
     toast.add({
       severity: 'error',
@@ -128,38 +144,71 @@ async function openLoanDialog() {
     return
   }
 
-  // Verificar solicitudes activas del usuario para evitar duplicados
-  try {
-    const myLoans = await getMyLoans()
-    const activeDeviceIds = myLoans
-      .filter((l) => ['pendiente', 'aprobado', 'prestado'].includes(l.status?.name ?? ''))
-      .flatMap((l) => l.loanRequestItems?.map((item) => item.deviceId) ?? [])
-
-    const duplicates = selectedDeviceIds.value.filter((id) => activeDeviceIds.includes(id))
-
-    if (duplicates.length > 0) {
-      const names = selectedDevices.value
-        .filter((d) => duplicates.includes(d.id))
-        .map((d) => d.product?.name ?? `#${d.id}`)
-        .join(', ')
-      toast.add({
-        severity: 'warn',
-        summary: 'Solicitud duplicada',
-        detail: `Ya tienes una solicitud activa para: ${names}.`,
-        life: 5000,
-      })
-      return
-    }
-  } catch {
-    // Si falla la verificación, dejamos continuar igual
-  }
-
   loanReason.value = ''
   loanEstimatedReturn.value = null
+
+  if (userStore.isAdmin) {
+    selectedRequesterId.value = userStore.currentUser?.id ?? null
+  }
+
   showLoanDialog.value = true
 }
 
+async function validateNoDuplicateActiveLoans() {
+  const requesterId = userStore.isAdmin
+    ? selectedRequesterId.value
+    : userStore.currentUser?.id
+
+  if (!requesterId) return true
+
+  try {
+    const loans = userStore.isAdmin
+      ? await getLoans()
+      : await getMyLoans()
+
+    const activeDeviceIds = loans
+      .filter(loan => loan.userId === requesterId || !userStore.isAdmin)
+      .filter(loan => ['pendiente', 'aprobado', 'prestado'].includes(loan.status?.name ?? ''))
+      .flatMap(loan => loan.loanRequestItems?.map(item => item.deviceId) ?? [])
+
+    const duplicates = selectedDeviceIds.value.filter(id => activeDeviceIds.includes(id))
+
+    if (duplicates.length > 0) {
+      const names = selectedDevices.value
+        .filter(device => duplicates.includes(device.id))
+        .map(device => device.product?.name ?? `#${device.id}`)
+        .join(', ')
+
+      toast.add({
+        severity: 'warn',
+        summary: 'Solicitud duplicada',
+        detail: `El solicitante ya tiene una solicitud activa para: ${names}.`,
+        life: 5000,
+      })
+
+      return false
+    }
+
+    return true
+  } catch {
+    return true
+  }
+}
+
 async function handleCreateLoan() {
+  if (userStore.isAdmin && !selectedRequesterId.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Solicitante requerido',
+      detail: 'Debes seleccionar para quién se realizará la solicitud.',
+      life: 3000,
+    })
+    return
+  }
+
+  const canContinue = await validateNoDuplicateActiveLoans()
+  if (!canContinue) return
+
   submittingLoan.value = true
   try {
     await createLoan({
@@ -168,19 +217,23 @@ async function handleCreateLoan() {
       estimatedReturnDate: loanEstimatedReturn.value
         ? loanEstimatedReturn.value.toISOString()
         : undefined,
+      requestedUserId: userStore.isAdmin
+        ? selectedRequesterId.value ?? undefined
+        : undefined,
     })
 
     toast.add({
       severity: 'success',
       summary: 'Solicitud enviada',
-      detail: 'Tu solicitud fue enviada correctamente. Puedes revisarla en "Mis Solicitudes".',
+      detail: userStore.isAdmin
+        ? 'La solicitud fue registrada correctamente para el usuario seleccionado.'
+        : 'Tu solicitud fue enviada correctamente. Puedes revisarla en "Mis Solicitudes".',
       life: 5000,
     })
 
     showLoanDialog.value = false
     selectedDeviceIds.value = []
 
-    // Recargar catálogo para reflejar cambios de disponibilidad
     await loadData()
   } catch {
     toast.add({
@@ -404,6 +457,22 @@ onMounted(loadData)
               }}</span>
             </div>
           </div>
+        </div>
+
+        <div
+          v-if="userStore.isAdmin"
+          class="flex flex-col gap-1"
+        >
+          <label class="font-medium">Solicitante</label>
+          <Select
+            v-model="selectedRequesterId"
+            :options="users"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Selecciona el solicitante"
+            filter
+            :disabled="submittingLoan"
+          />
         </div>
 
         <div class="flex flex-col gap-1">

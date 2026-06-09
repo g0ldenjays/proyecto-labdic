@@ -6,7 +6,7 @@ from advanced_alchemy.repository import SQLAlchemySyncRepository
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.inventory import Device, LoanRequest, LoanRequestItem, Status
+from app.models.inventory import Device, LoanRequest, LoanRequestItem, Status, User
 
 
 class LoanRequestRepository(SQLAlchemySyncRepository[LoanRequest]):
@@ -151,6 +151,9 @@ class LoanRequestRepository(SQLAlchemySyncRepository[LoanRequest]):
 
         self.session.commit()
         return self.get_with_relations(loan_id)
+    
+    def user_exists(self, user_id: int) -> bool:
+        return self.session.get(User, user_id) is not None
 
 
 def provide_loan_repository(db_session: Session) -> LoanRequestRepository:

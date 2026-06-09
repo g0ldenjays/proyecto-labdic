@@ -27,4 +27,5 @@ export interface LoanRequestCreatePayload {
   deviceIds: number[]
   reason?: string
   estimatedReturnDate?: string
+  requestedUserId?: number
 }

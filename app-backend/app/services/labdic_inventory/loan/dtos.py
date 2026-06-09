@@ -8,7 +8,6 @@ from litestar.plugins.sqlalchemy import SQLAlchemyDTO
 
 from app.models.inventory import LoanRequest
 
-
 class LoanRequestReadDTO(SQLAlchemyDTO[LoanRequest]):
     config = SQLAlchemyDTOConfig(
         exclude={
@@ -24,10 +23,10 @@ class LoanRequestReadDTO(SQLAlchemyDTO[LoanRequest]):
         partial=True,
     )
 
-
 @dataclass
 class LoanRequestCreateDTO:
     """Payload para crear una solicitud de préstamo con sus devices."""
     device_ids: list[int]
     reason: str | None = None
     estimated_return_date: datetime | None = None
+    requested_user_id: int | None = None
