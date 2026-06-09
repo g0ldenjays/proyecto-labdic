@@ -346,16 +346,6 @@ onMounted(loadData)
             </div>
           </template>
 
-          <Column style="width: 52px">
-            <template #body="{ data }">
-              <Checkbox
-                :modelValue="isSelected(data.id)"
-                :binary="true"
-                @change="toggleSelection(data.id)"
-              />
-            </template>
-          </Column>
-
           <Column header="Dispositivo">
             <template #body="{ data }">
               <div class="product-info">
