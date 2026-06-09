@@ -176,7 +176,7 @@ class Device(Base):
     cascade="all, delete-orphan",
     passive_deletes=True,
     )
-
+    observation: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 class LoanRequest(Base):
     """Para gestionar las solicitudes de préstamo de dispositivos."""

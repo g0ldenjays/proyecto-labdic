@@ -218,6 +218,7 @@ const emptyDeviceForm: DevicePayload = {
   internalCode: null,
   serialNumber: null,
   ubicationId: null,
+  observation: null,
 }
 
 const deviceInitialValues = ref<DevicePayload>({ ...emptyDeviceForm })
@@ -246,6 +247,7 @@ async function handleCreateDeviceFromProduct(payload: DevicePayload) {
     internalCode: payload.internalCode || null,
     serialNumber: payload.serialNumber || null,
     ubicationId: payload.ubicationId || null,
+    observation: payload.observation || null,
   }
 
   if (!normalizedPayload.productId || !normalizedPayload.statusId) {

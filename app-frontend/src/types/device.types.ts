@@ -13,6 +13,7 @@ export interface Device {
   ubication?: Ubication
   ubicationId?: number
   createdAt: string
+  observation?: string | null
 }
 
 export interface DevicePayload {
@@ -21,6 +22,7 @@ export interface DevicePayload {
   internalCode?: string | null
   serialNumber?: string | null
   ubicationId?: number | null
+  observation?: string | null
 }
 
 export interface DeviceStatusLog {

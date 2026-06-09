@@ -367,17 +367,28 @@ onMounted(loadData)
             <template #body="{ data }">{{ data.ubication?.name ?? '—' }}</template>
           </Column>
 
-          <Column style="width: 130px">
+          <Column header="Observación">
             <template #body="{ data }">
-              <Button
-                :label="isSelected(data.id) ? 'Quitar' : 'Agregar al carrito'"
-                :severity="isSelected(data.id) ? 'secondary' : 'primary'"
-                :outlined="!isSelected(data.id)"
-                size="small"
-                @click="toggleSelection(data.id)"
-              />
+              <span class="observation-text">
+                {{ data.observation ?? '—' }}
+              </span>
             </template>
           </Column>
+
+          <Column header="" style="width: 180px">
+            <template #body="{ data }">
+              <div class="action-cell">
+                <Button
+                  :label="isSelected(data.id) ? 'Quitar' : 'Agregar al carrito'"
+                  :severity="isSelected(data.id) ? 'secondary' : 'primary'"
+                  :outlined="!isSelected(data.id)"
+                  size="small"
+                  @click="toggleSelection(data.id)"
+                />
+              </div>
+            </template>
+          </Column>
+
         </DataTable>
 
         <div v-if="selectedDeviceIds.length > 0" class="cart-bottom-action">
@@ -573,6 +584,22 @@ onMounted(loadData)
 .product-category {
   font-size: 0.75rem;
   color: var(--p-text-muted-color);
+}
+.observation-text {
+  display: block;
+  max-width: 260px;
+  line-height: 1.35;
+  color: var(--p-text-color);
+  white-space: normal;
+  word-break: break-word;
+}
+.action-cell {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+.observation-text {
+  line-height: 1.35;
 }
 .loan-dialog-content {
   display: flex;

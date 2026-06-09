@@ -37,6 +37,7 @@ function buildForm(values: DevicePayload): DevicePayload {
     internalCode: values.internalCode ?? null,
     serialNumber: values.serialNumber ?? null,
     ubicationId: values.ubicationId ?? null,
+    observation: values.internalCode ?? null,
   }
 }
 
@@ -57,6 +58,7 @@ function normalizeDevicePayload(values: DevicePayload): DevicePayload {
     internalCode: values.internalCode?.trim() || null,
     serialNumber: values.serialNumber?.trim() || null,
     ubicationId: values.ubicationId ?? null,
+    observation: values.observation?.trim() || null,
   }
 }
 
@@ -148,6 +150,17 @@ function onSubmit() {
         placeholder="Selecciona una ubicación"
         showClear
         :disabled="submitting"
+      />
+    </div>
+
+    <!-- Observación -->
+    <div class="flex flex-col gap-1">
+      <label class="font-medium">Observación</label>
+      <Textarea
+        v-model="form.observation"
+        rows="3"
+        autoResize
+        placeholder="Ej: Plastificado, longitud 10m, incluye adaptador, etc."
       />
     </div>
 

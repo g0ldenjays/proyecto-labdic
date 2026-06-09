@@ -84,6 +84,7 @@ function getEmptyForm(): DevicePayload {
     internalCode: null,
     serialNumber: null,
     ubicationId: null,
+    observation: null,
   }
 }
 const drawerInitialValues = ref<DevicePayload>(getEmptyForm())
@@ -113,6 +114,7 @@ async function openEditDrawer(device: Device) {
       internalCode: d.internalCode ?? null,
       serialNumber: d.serialNumber ?? null,
       ubicationId: d.ubicationId ?? null,
+      observation: d.observation ?? null,
     }
 
     originalStatusId.value = d.statusId
@@ -146,6 +148,7 @@ async function handleSubmit(payload: DevicePayload) {
     internalCode: payload.internalCode || null,
     serialNumber: payload.serialNumber || null,
     ubicationId: payload.ubicationId || null,
+    observation: payload.observation || null,
   }
 
   submitting.value = true
