@@ -30,3 +30,4 @@ class LoanRequestCreateDTO:
     reason: str | None = None
     estimated_return_date: datetime | None = None
     requested_user_id: int | None = None
+    additional_items: str | None = None

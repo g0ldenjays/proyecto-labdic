@@ -102,18 +102,9 @@ const selectedDevices = computed(() =>
 )
 
 const showCartDrawer = ref(false)
+const additionalItems = ref('')
 
 function openCartDrawer() {
-  if (selectedDeviceIds.value.length === 0) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Carrito vacío',
-      detail: 'Agrega al menos un dispositivo al carrito.',
-      life: 3000,
-    })
-    return
-  }
-
   showCartDrawer.value = true
 }
 
@@ -141,11 +132,11 @@ const loanEstimatedReturn = ref<Date | null>(null)
 const submittingLoan = ref(false)
 
 async function openLoanDialog() {
-  if (selectedDeviceIds.value.length === 0) {
+  if (selectedDeviceIds.value.length === 0 && !additionalItems.value.trim()) {
     toast.add({
       severity: 'warn',
-      summary: 'Sin selección',
-      detail: 'Selecciona al menos un dispositivo.',
+      summary: 'Carrito vacío',
+      detail: 'Agrega al menos un dispositivo o un elemento adicional al carrito.',
       life: 3000,
     })
     return
@@ -162,28 +153,24 @@ async function openLoanDialog() {
 }
 
 async function validateNoDuplicateActiveLoans() {
-  const requesterId = userStore.isAdmin
-    ? selectedRequesterId.value
-    : userStore.currentUser?.id
+  const requesterId = userStore.isAdmin ? selectedRequesterId.value : userStore.currentUser?.id
 
   if (!requesterId) return true
 
   try {
-    const loans = userStore.isAdmin
-      ? await getLoans()
-      : await getMyLoans()
+    const loans = userStore.isAdmin ? await getLoans() : await getMyLoans()
 
     const activeDeviceIds = loans
-      .filter(loan => loan.userId === requesterId || !userStore.isAdmin)
-      .filter(loan => ['pendiente', 'aprobado', 'prestado'].includes(loan.status?.name ?? ''))
-      .flatMap(loan => loan.loanRequestItems?.map(item => item.deviceId) ?? [])
+      .filter((loan) => loan.userId === requesterId || !userStore.isAdmin)
+      .filter((loan) => ['pendiente', 'aprobado', 'prestado'].includes(loan.status?.name ?? ''))
+      .flatMap((loan) => loan.loanRequestItems?.map((item) => item.deviceId) ?? [])
 
-    const duplicates = selectedDeviceIds.value.filter(id => activeDeviceIds.includes(id))
+    const duplicates = selectedDeviceIds.value.filter((id) => activeDeviceIds.includes(id))
 
     if (duplicates.length > 0) {
       const names = selectedDevices.value
-        .filter(device => duplicates.includes(device.id))
-        .map(device => device.product?.name ?? `#${device.id}`)
+        .filter((device) => duplicates.includes(device.id))
+        .map((device) => device.product?.name ?? `#${device.id}`)
         .join(', ')
 
       toast.add({
@@ -224,9 +211,8 @@ async function handleCreateLoan() {
       estimatedReturnDate: loanEstimatedReturn.value
         ? loanEstimatedReturn.value.toISOString()
         : undefined,
-      requestedUserId: userStore.isAdmin
-        ? selectedRequesterId.value ?? undefined
-        : undefined,
+      requestedUserId: userStore.isAdmin ? (selectedRequesterId.value ?? undefined) : undefined,
+      additionalItems: additionalItems.value.trim() || undefined,
     })
 
     toast.add({
@@ -240,6 +226,7 @@ async function handleCreateLoan() {
 
     showLoanDialog.value = false
     selectedDeviceIds.value = []
+    additionalItems.value = ''
 
     await loadData()
   } catch {
@@ -271,8 +258,7 @@ onMounted(loadData)
       </div>
       <Transition name="fade">
         <Button
-          v-if="selectedDeviceIds.length > 0"
-          :label="`Solicitar carrito (${selectedDeviceIds.length})`"
+          :label="`Ver carrito (${selectedDeviceIds.length})`"
           icon="pi pi-shopping-cart"
           @click="openCartDrawer"
         />
@@ -383,21 +369,21 @@ onMounted(loadData)
             <template #body="{ data }">
               <div class="action-cell">
                 <Button
-                  :label="isSelected(data.id) ? 'Quitar' : 'Agregar al carrito'"
-                  :severity="isSelected(data.id) ? 'secondary' : 'primary'"
-                  :outlined="!isSelected(data.id)"
+                  :label="isSelected(data.id) ? 'Quitar' : 'Agregar'"
+                  :severity="isSelected(data.id) ? 'danger' : 'primary'"
+                  outlined
                   size="small"
+                  :icon="isSelected(data.id) ? 'pi pi-cart-minus' : 'pi pi-cart-arrow-down'"
                   @click="toggleSelection(data.id)"
                 />
               </div>
             </template>
           </Column>
-
         </DataTable>
 
-        <div v-if="selectedDeviceIds.length > 0" class="cart-bottom-action">
+        <div class="cart-bottom-action">
           <Button
-            :label="`Solicitar carrito (${selectedDeviceIds.length})`"
+            :label="`Ver carrito (${selectedDeviceIds.length})`"
             icon="pi pi-shopping-cart"
             @click="openCartDrawer"
           />
@@ -408,7 +394,7 @@ onMounted(loadData)
     <!-- Drawer carrito -->
     <Drawer v-model:visible="showCartDrawer" header="Carrito" position="right" style="width: 440px">
       <div class="cart-drawer-content">
-        <p class="cart-intro">Estás a punto de solicitar los siguientes dispositivos:</p>
+        <p class="cart-intro">Estás a punto de solicitar los siguientes elementos:</p>
 
         <div v-if="selectedDevices.length === 0" class="cart-empty">
           No hay dispositivos en el carrito.
@@ -439,13 +425,26 @@ onMounted(loadData)
           </div>
         </div>
 
+        <div class="cart-section">
+          <h3 class="cart-section-title">Elementos adicionales</h3>
+
+          <p class="cart-help-text">Escribe aquí elementos sin código de inventario.</p>
+
+          <Textarea
+            v-model="additionalItems"
+            rows="4"
+            autoResize
+            placeholder="Describe los elementos adicionales que necesitas..."
+          />
+        </div>
+
         <div class="cart-drawer-actions">
           <Button label="Seguir viendo" severity="secondary" text @click="continueWatching" />
 
           <Button
-            label="Solicitar dispositivos"
+            label="Continuar solicitud"
             icon="pi pi-send"
-            :disabled="selectedDevices.length === 0"
+            :disabled="selectedDevices.length === 0 && !additionalItems.trim()"
             @click="startLoanRequestFromCart"
           />
         </div>
@@ -455,14 +454,14 @@ onMounted(loadData)
     <!-- Dialog solicitud -->
     <Dialog
       v-model:visible="showLoanDialog"
-      header="Solicitar dispositivos"
+      header="Solicitar elementos"
       modal
       :style="{ width: '480px' }"
       :closable="!submittingLoan"
     >
       <div class="loan-dialog-content">
         <div class="selected-devices-section">
-          <label class="section-label">Dispositivos seleccionados</label>
+          <label class="section-label">Elementos inventariados</label>
           <div class="selected-devices-list">
             <div v-for="device in selectedDevices" :key="device.id" class="selected-device-item">
               <i class="pi pi-server text-muted-color" />
@@ -474,10 +473,14 @@ onMounted(loadData)
           </div>
         </div>
 
-        <div
-          v-if="userStore.isAdmin"
-          class="flex flex-col gap-1"
-        >
+        <div v-if="additionalItems.trim()" class="selected-devices-section">
+          <label class="section-label">Elementos adicionales</label>
+          <div class="additional-items-preview">
+            {{ additionalItems }}
+          </div>
+        </div>
+
+        <div v-if="userStore.isAdmin" class="flex flex-col gap-1">
           <label class="font-medium">Solicitante</label>
           <Select
             v-model="selectedRequesterId"
@@ -522,7 +525,7 @@ onMounted(loadData)
           @click="showLoanDialog = false"
         />
         <Button
-          label="Solicitar dispositivos"
+          label="Enviar solicitud"
           icon="pi pi-send"
           :loading="submittingLoan"
           @click="handleCreateLoan"
@@ -734,4 +737,32 @@ onMounted(loadData)
   padding-top: 1rem;
   border-top: 1px solid var(--p-surface-200, rgba(0, 0, 0, 0.08));
 }
+
+.cart-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cart-section-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.cart-help-text {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--p-text-muted-color);
+}
+
+.additional-items-preview {
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--p-surface-50, rgba(0, 0, 0, 0.03));
+  border: 1px solid var(--p-surface-100, rgba(0, 0, 0, 0.05));
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+}
+
 </style>

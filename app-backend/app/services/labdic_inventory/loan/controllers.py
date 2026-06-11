@@ -82,6 +82,7 @@ class LoanRequestController(Controller):
             device_ids=data.device_ids,
             reason=data.reason,
             estimated_return_date=data.estimated_return_date,
+            additional_items=data.additional_items,
         )
 
     @patch(path="/{loan_id:int}/approve", summary="ApproveLoanRequest", guards=[admin_guard])

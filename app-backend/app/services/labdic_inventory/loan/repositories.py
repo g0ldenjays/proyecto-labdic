@@ -52,6 +52,7 @@ class LoanRequestRepository(SQLAlchemySyncRepository[LoanRequest]):
         device_ids: list[int],
         reason: str | None,
         estimated_return_date: datetime | None,
+        additional_items: str | None,
     ) -> LoanRequest:
         """Crea una solicitud de préstamo con sus items en una sola transacción."""
         status_id = self._get_status_id("pendiente")
@@ -62,6 +63,7 @@ class LoanRequestRepository(SQLAlchemySyncRepository[LoanRequest]):
             reason=reason,
             estimated_return_date=estimated_return_date,
             request_date=datetime.now(timezone.utc),
+            additional_items=additional_items,
         )
         self.session.add(loan)
         self.session.flush()

@@ -16,6 +16,7 @@ export interface LoanRequest {
   status: Status
   statusId: number
   reason?: string
+  additionalItems?: string
   requestDate: string
   deliveryDate?: string
   estimatedReturnDate?: string
@@ -28,4 +29,5 @@ export interface LoanRequestCreatePayload {
   reason?: string
   estimatedReturnDate?: string
   requestedUserId?: number
+  additionalItems?: string
 }

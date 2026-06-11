@@ -190,6 +190,8 @@ class LoanRequest(Base):
     status_id: Mapped[int] = mapped_column(ForeignKey("statuses.id"))
     # Ejemplo: "Necesito el dispositivo para un proyecto"
     reason: Mapped[str] = mapped_column(String(500), nullable=True)
+    # Objetos sin codigo de inventario
+    additional_items: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Fecha de entrega del dispositivo
     delivery_date: Mapped[datetime] = mapped_column(nullable=True)
     # Fecha estimada de devolución del dispositivo
