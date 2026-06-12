@@ -6,7 +6,7 @@ from advanced_alchemy.repository import SQLAlchemySyncRepository
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.inventory import Device, LoanRequest, LoanRequestItem, Status, User
+from app.models.inventory import Device, LoanRequest, LoanRequestItem, LoanRequestBookItem, Status, User
 
 
 class LoanRequestRepository(SQLAlchemySyncRepository[LoanRequest]):
@@ -52,7 +52,8 @@ class LoanRequestRepository(SQLAlchemySyncRepository[LoanRequest]):
         device_ids: list[int],
         reason: str | None,
         estimated_return_date: datetime | None,
-        additional_items: str | None,
+        additional_items: str | None = None,
+        book_ids: list[int] | None = None,
     ) -> LoanRequest:
         """Crea una solicitud de préstamo con sus items en una sola transacción."""
         status_id = self._get_status_id("pendiente")
@@ -74,6 +75,15 @@ class LoanRequestRepository(SQLAlchemySyncRepository[LoanRequest]):
                 device_id=device_id,
             )
             self.session.add(item)
+
+        for book_id in book_ids or []:
+            self.session.add(
+                LoanRequestBookItem(
+                    loan_request_id=loan.id,
+                    book_id=book_id,
+                    quantity=1,
+                )
+            )
 
         self.session.commit()
         return self.get_with_relations(loan.id)

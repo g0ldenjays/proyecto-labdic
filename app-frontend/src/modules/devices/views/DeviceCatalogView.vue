@@ -11,41 +11,67 @@ import DeviceStatusBadge from '@/components/ui/DevicesStatusBadge.vue'
 import { useUserStore } from '@/stores/user.store'
 import type { User } from '@/types/user.types'
 import { getUsers } from '@/services/user.service'
+import { getBooks } from '@/services/book.service'
+import type { Book } from '@/types/book.types'
 
 const router = useRouter()
 const toast = useToast()
 const userStore = useUserStore()
 
 // ── Datos ─────────────────────────────────────────────────────────────
+const activeCatalogTab = ref<'devices' | 'books'>('devices')
+
 const loading = ref(false)
 const devices = ref<Device[]>([])
 const categories = ref<Category[]>([])
 const users = ref<User[]>([])
 const selectedRequesterId = ref<number | null>(null)
+const books = ref<Book[]>([])
+const selectedBookIds = ref<number[]>([])
+const bookSearch = ref('')
+const filterTopic = ref<string | null>(null)
 
 async function loadData() {
   loading.value = true
-  try {
-    const [d, c, u] = await Promise.all([
-      getAvailableDevices(),
-      getCategories(),
-      userStore.isAdmin ? getUsers() : Promise.resolve([]),
-    ])
 
-    devices.value = d
-    categories.value = c
-    users.value = u
+  try {
+    devices.value = await getAvailableDevices()
+  } catch {
+    devices.value = []
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudieron cargar los dispositivos.',
+      life: 4000,
+    })
+  }
+
+  try {
+    categories.value = await getCategories()
+  } catch {
+    categories.value = []
+  }
+
+  try {
+    books.value = await getBooks()
+  } catch {
+    books.value = []
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudieron cargar los libros.',
+      life: 4000,
+    })
+  }
+
+  try {
+    users.value = userStore.isAdmin ? await getUsers() : []
 
     if (userStore.isAdmin && !selectedRequesterId.value) {
       selectedRequesterId.value = userStore.currentUser?.id ?? null
     }
   } catch {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'No se pudo cargar el catálogo.',
-      life: 4000,
-    })
+    users.value = []
   } finally {
     loading.value = false
   }
@@ -77,6 +103,45 @@ const filteredDevices = computed(() => {
     )
   }
   return result
+})
+
+const bookTopicOptions = computed(() => {
+  const map = new Map<string, { label: string; value: string; count: number }>()
+
+  books.value.forEach(book => {
+    if (!book.topic) return
+
+    const existing = map.get(book.topic)
+
+    if (existing) {
+      existing.count += book.availableQuantity
+    } else {
+      map.set(book.topic, {
+        label: book.topic,
+        value: book.topic,
+        count: book.availableQuantity,
+      })
+    }
+  })
+
+  return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label))
+})
+
+const filteredBooks = computed(() => {
+  const query = bookSearch.value.trim().toLowerCase()
+
+  return books.value.filter(book => {
+    const matchesSearch =
+      !query ||
+      book.title.toLowerCase().includes(query) ||
+      book.author?.toLowerCase().includes(query) ||
+      book.isbn?.toLowerCase().includes(query)
+
+    const matchesTopic =
+      !filterTopic.value || book.topic === filterTopic.value
+
+    return matchesSearch && matchesTopic && book.availableQuantity > 0
+  })
 })
 
 function clearFilters() {
@@ -125,6 +190,23 @@ async function startLoanRequestFromCart() {
   await openLoanDialog()
 }
 
+function isBookSelected(bookId: number) {
+  return selectedBookIds.value.includes(bookId)
+}
+
+function toggleBookSelection(bookId: number) {
+  if (isBookSelected(bookId)) {
+    selectedBookIds.value = selectedBookIds.value.filter(id => id !== bookId)
+    return
+  }
+
+  selectedBookIds.value = [...selectedBookIds.value, bookId]
+}
+
+const selectedBooks = computed(() =>
+  books.value.filter(book => selectedBookIds.value.includes(book.id)),
+)
+
 // ── Dialog solicitud de préstamo ─────────────────────────────────────
 const showLoanDialog = ref(false)
 const loanReason = ref('')
@@ -132,7 +214,7 @@ const loanEstimatedReturn = ref<Date | null>(null)
 const submittingLoan = ref(false)
 
 async function openLoanDialog() {
-  if (selectedDeviceIds.value.length === 0 && !additionalItems.value.trim()) {
+  if (selectedDeviceIds.value.length === 0 && selectedBookIds.value.length === 0 && !additionalItems.value.trim()) {
     toast.add({
       severity: 'warn',
       summary: 'Carrito vacío',
@@ -207,6 +289,7 @@ async function handleCreateLoan() {
   try {
     await createLoan({
       deviceIds: selectedDeviceIds.value,
+      bookIds: selectedBookIds.value,
       reason: loanReason.value || undefined,
       estimatedReturnDate: loanEstimatedReturn.value
         ? loanEstimatedReturn.value.toISOString()
@@ -226,6 +309,7 @@ async function handleCreateLoan() {
 
     showLoanDialog.value = false
     selectedDeviceIds.value = []
+    selectedBookIds.value = []
     additionalItems.value = ''
 
     await loadData()
@@ -258,138 +342,227 @@ onMounted(loadData)
       </div>
       <Transition name="fade">
         <Button
-          :label="`Ver carrito (${selectedDeviceIds.length})`"
+          :label="`Ver carrito (${selectedDeviceIds.length + selectedBookIds.length})`"
           icon="pi pi-shopping-cart"
           @click="openCartDrawer"
         />
       </Transition>
     </div>
 
-    <!-- Filtros -->
-    <Card>
-      <template #content>
+    <div class="catalog-tabs">
+      <Button
+        label="Dispositivos"
+        :severity="activeCatalogTab === 'devices' ? 'primary' : 'secondary'"
+        :outlined="activeCatalogTab !== 'devices'"
+        @click="activeCatalogTab = 'devices'"
+      />
+
+      <Button
+        label="Libros"
+        :severity="activeCatalogTab === 'books' ? 'primary' : 'secondary'"
+        :outlined="activeCatalogTab !== 'books'"
+        @click="activeCatalogTab = 'books'"
+      />
+    </div>
+
+    <template v-if="activeCatalogTab === 'devices'">
+      <!-- Filtros -->
+      <Card>
+        <template #content>
+          <div class="filters-row">
+            <InputText
+              v-model="filterSearch"
+              placeholder="Buscar por nombre, código o serie..."
+              class="filter-search"
+            />
+            <Select
+              v-model="filterCategory"
+              :options="categoryFilterOptions"
+              optionLabel="name"
+              optionValue="id"
+              placeholder="Todas las categorías"
+              showClear
+              class="filter-category"
+            >
+              <template #option="{ option }">
+                <div class="filter-option">
+                  <span>{{ option.name }}</span>
+                  <span class="filter-option-count">{{ option.count }}</span>
+                </div>
+              </template>
+            </Select>
+            <Button
+              v-if="filterCategory || filterSearch"
+              label="Limpiar"
+              severity="secondary"
+              text
+              icon="pi pi-times"
+              @click="clearFilters"
+            />
+          </div>
+        </template>
+      </Card>
+
+      <!-- Contador -->
+      <div class="results-info">
+        <span
+          >{{ filteredDevices.length }} dispositivo{{
+            filteredDevices.length !== 1 ? 's' : ''
+          }}
+          disponible{{ filteredDevices.length !== 1 ? 's' : '' }}</span
+        >
+        <span v-if="selectedDeviceIds.length > 0" class="selected-count">
+          · {{ selectedDeviceIds.length }} seleccionado{{
+            selectedDeviceIds.length !== 1 ? 's' : ''
+          }}
+        </span>
+      </div>
+
+      <!-- Tabla -->
+      <Card>
+        <template #content>
+          <DataTable
+            :value="filteredDevices"
+            :loading="loading"
+            dataKey="id"
+            stripedRows
+            :rowClass="getRowClass"
+          >
+            <template #empty>
+              <div class="text-center py-8 text-muted-color">
+                <i class="pi pi-inbox text-4xl block mb-3 opacity-30" />
+                No hay dispositivos disponibles en este momento.
+              </div>
+            </template>
+
+            <Column header="Dispositivo">
+              <template #body="{ data }">
+                <div class="product-info">
+                  <span class="product-name">{{ data.product?.name ?? '—' }}</span>
+                  <span v-if="data.product?.category" class="product-category">{{
+                    data.product.category.name
+                  }}</span>
+                </div>
+              </template>
+            </Column>
+
+            <Column field="internalCode" header="Código">
+              <template #body="{ data }">{{ data.internalCode ?? '—' }}</template>
+            </Column>
+
+            <Column header="Estado" style="width: 130px">
+              <template #body="{ data }">
+                <DeviceStatusBadge :status="data.status?.name ?? ''" />
+              </template>
+            </Column>
+
+            <Column header="Ubicación">
+              <template #body="{ data }">{{ data.ubication?.name ?? '—' }}</template>
+            </Column>
+
+            <Column header="Observación">
+              <template #body="{ data }">
+                <span class="observation-text">
+                  {{ data.observation ?? '—' }}
+                </span>
+              </template>
+            </Column>
+
+            <Column header="" style="width: 180px">
+              <template #body="{ data }">
+                <div class="action-cell">
+                  <Button
+                    :label="isSelected(data.id) ? 'Quitar' : 'Agregar'"
+                    :severity="isSelected(data.id) ? 'danger' : 'primary'"
+                    outlined
+                    size="small"
+                    :icon="isSelected(data.id) ? 'pi pi-cart-minus' : 'pi pi-cart-arrow-down'"
+                    @click="toggleSelection(data.id)"
+                  />
+                </div>
+              </template>
+            </Column>
+          </DataTable>
+
+          <div class="cart-bottom-action">
+            <Button
+              :label="`Ver carrito (${selectedDeviceIds.length})`"
+              icon="pi pi-shopping-cart"
+              @click="openCartDrawer"
+            />
+          </div>
+        </template>
+      </Card>
+    </template>
+
+    <template v-else>
+      <div class="filters-card">
         <div class="filters-row">
-          <InputText
-            v-model="filterSearch"
-            placeholder="Buscar por nombre, código o serie..."
-            class="filter-search"
-          />
+          <span class="p-input-icon-left catalog-search">
+            <i class="pi pi-search" />
+            <InputText v-model="bookSearch" placeholder="Buscar por título, autor o ISBN" />
+          </span>
+
           <Select
-            v-model="filterCategory"
-            :options="categoryFilterOptions"
-            optionLabel="name"
-            optionValue="id"
-            placeholder="Todas las categorías"
+            v-model="filterTopic"
+            :options="bookTopicOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Filtrar por temática"
             showClear
-            class="filter-category"
           >
             <template #option="{ option }">
               <div class="filter-option">
-                <span>{{ option.name }}</span>
+                <span>{{ option.label }}</span>
                 <span class="filter-option-count">{{ option.count }}</span>
               </div>
             </template>
           </Select>
-          <Button
-            v-if="filterCategory || filterSearch"
-            label="Limpiar"
-            severity="secondary"
-            text
-            icon="pi pi-times"
-            @click="clearFilters"
-          />
         </div>
-      </template>
-    </Card>
+      </div>
 
-    <!-- Contador -->
-    <div class="results-info">
-      <span
-        >{{ filteredDevices.length }} dispositivo{{
-          filteredDevices.length !== 1 ? 's' : ''
-        }}
-        disponible{{ filteredDevices.length !== 1 ? 's' : '' }}</span
+      <DataTable
+        :value="filteredBooks"
+        dataKey="id"
+        responsiveLayout="scroll"
+        class="catalog-table"
       >
-      <span v-if="selectedDeviceIds.length > 0" class="selected-count">
-        · {{ selectedDeviceIds.length }} seleccionado{{ selectedDeviceIds.length !== 1 ? 's' : '' }}
-      </span>
-    </div>
+        <Column field="title" header="Libro" sortable />
 
-    <!-- Tabla -->
-    <Card>
-      <template #content>
-        <DataTable
-          :value="filteredDevices"
-          :loading="loading"
-          dataKey="id"
-          stripedRows
-          :rowClass="getRowClass"
-        >
-          <template #empty>
-            <div class="text-center py-8 text-muted-color">
-              <i class="pi pi-inbox text-4xl block mb-3 opacity-30" />
-              No hay dispositivos disponibles en este momento.
-            </div>
+        <Column field="author" header="Autor">
+          <template #body="{ data }">
+            {{ data.author ?? '—' }}
           </template>
+        </Column>
 
-          <Column header="Dispositivo">
-            <template #body="{ data }">
-              <div class="product-info">
-                <span class="product-name">{{ data.product?.name ?? '—' }}</span>
-                <span v-if="data.product?.category" class="product-category">{{
-                  data.product.category.name
-                }}</span>
-              </div>
-            </template>
-          </Column>
+        <Column field="topic" header="Temática">
+          <template #body="{ data }">
+            {{ data.topic ?? '—' }}
+          </template>
+        </Column>
 
-          <Column field="internalCode" header="Código">
-            <template #body="{ data }">{{ data.internalCode ?? '—' }}</template>
-          </Column>
+        <Column field="isbn" header="ISBN">
+          <template #body="{ data }">
+            {{ data.isbn ?? '—' }}
+          </template>
+        </Column>
 
-          <Column header="Estado" style="width: 130px">
-            <template #body="{ data }">
-              <DeviceStatusBadge :status="data.status?.name ?? ''" />
-            </template>
-          </Column>
+        <Column field="availableQuantity" header="Disponibles" sortable />
 
-          <Column header="Ubicación">
-            <template #body="{ data }">{{ data.ubication?.name ?? '—' }}</template>
-          </Column>
-
-          <Column header="Observación">
-            <template #body="{ data }">
-              <span class="observation-text">
-                {{ data.observation ?? '—' }}
-              </span>
-            </template>
-          </Column>
-
-          <Column header="" style="width: 180px">
-            <template #body="{ data }">
-              <div class="action-cell">
-                <Button
-                  :label="isSelected(data.id) ? 'Quitar' : 'Agregar'"
-                  :severity="isSelected(data.id) ? 'danger' : 'primary'"
-                  outlined
-                  size="small"
-                  :icon="isSelected(data.id) ? 'pi pi-cart-minus' : 'pi pi-cart-arrow-down'"
-                  @click="toggleSelection(data.id)"
-                />
-              </div>
-            </template>
-          </Column>
-        </DataTable>
-
-        <div class="cart-bottom-action">
-          <Button
-            :label="`Ver carrito (${selectedDeviceIds.length})`"
-            icon="pi pi-shopping-cart"
-            @click="openCartDrawer"
-          />
-        </div>
-      </template>
-    </Card>
+        <Column header="" style="width: 150px">
+          <template #body="{ data }">
+            <Button
+              :label="isBookSelected(data.id) ? 'Quitar' : 'Agregar'"
+              :severity="isBookSelected(data.id) ? 'danger' : 'primary'"
+              outlined
+              :icon="isBookSelected(data.id) ? 'pi pi-cart-minus' : 'pi pi-cart-arrow-down'"
+              size="small"
+              @click="toggleBookSelection(data.id)"
+            />
+          </template>
+        </Column>
+      </DataTable>
+    </template>
 
     <!-- Drawer carrito -->
     <Drawer v-model:visible="showCartDrawer" header="Carrito" position="right" style="width: 440px">
@@ -401,6 +574,7 @@ onMounted(loadData)
         </div>
 
         <div v-else class="cart-device-list">
+          <h3 class="cart-section-title">Dispositivos</h3>
           <div v-for="device in selectedDevices" :key="device.id" class="cart-device-item">
             <div class="cart-device-info">
               <span class="cart-device-name">
@@ -425,6 +599,31 @@ onMounted(loadData)
           </div>
         </div>
 
+        <div v-if="selectedBooks.length > 0" class="cart-device-list">
+          <h3 class="cart-section-title">Libros</h3>
+
+          <div v-for="book in selectedBooks" :key="book.id" class="cart-device-item">
+            <div class="cart-device-info">
+              <span class="cart-device-name">
+                {{ book.title }}
+              </span>
+              <span class="cart-device-detail">
+                {{ book.author ?? 'Autor no registrado' }}
+              </span>
+              <span class="cart-device-detail"> Temática: {{ book.topic ?? '—' }} </span>
+            </div>
+
+            <Button
+              icon="pi pi-trash"
+              severity="danger"
+              text
+              rounded
+              v-tooltip.left="'Quitar del carrito'"
+              @click="toggleBookSelection(book.id)"
+            />
+          </div>
+        </div>
+
         <div class="cart-section">
           <h3 class="cart-section-title">Elementos adicionales</h3>
 
@@ -444,7 +643,9 @@ onMounted(loadData)
           <Button
             label="Continuar solicitud"
             icon="pi pi-send"
-            :disabled="selectedDevices.length === 0 && !additionalItems.trim()"
+            :disabled="
+              selectedDevices.length === 0 && selectedBooks.length === 0 && !additionalItems.trim()
+            "
             @click="startLoanRequestFromCart"
           />
         </div>
@@ -469,6 +670,20 @@ onMounted(loadData)
               <span class="device-code text-muted-color">{{
                 device.internalCode ?? `#${device.id}`
               }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="selectedBooks.length > 0" class="selected-devices-section">
+          <label class="section-label">Libros</label>
+
+          <div class="selected-devices-list">
+            <div v-for="book in selectedBooks" :key="book.id" class="selected-device-item">
+              <i class="pi pi-book text-muted-color" />
+              <span>{{ book.title }}</span>
+              <span class="device-code text-muted-color">
+                {{ book.author ?? '—' }}
+              </span>
             </div>
           </div>
         </div>
@@ -765,4 +980,9 @@ onMounted(loadData)
   font-size: 0.875rem;
 }
 
+.catalog-tabs {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
 </style>

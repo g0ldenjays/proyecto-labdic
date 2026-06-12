@@ -2,6 +2,7 @@
 import type { User } from './user.types'
 import type { Status } from './catalog.types'
 import type { Device } from './device.types'
+import type { Book } from './book.types'
 
 export interface LoanRequestItem {
   id: number
@@ -22,12 +23,22 @@ export interface LoanRequest {
   estimatedReturnDate?: string
   actualReturnDate?: string
   loanRequestItems: LoanRequestItem[]
+  bookItems?: LoanRequestBookItem[]
 }
 
 export interface LoanRequestCreatePayload {
   deviceIds: number[]
+  bookIds?: number[]
   reason?: string
   estimatedReturnDate?: string
   requestedUserId?: number
   additionalItems?: string
+}
+
+export interface LoanRequestBookItem {
+  id: number
+  loanRequestId: number
+  bookId: number
+  quantity: number
+  book?: Book
 }

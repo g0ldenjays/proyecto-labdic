@@ -111,7 +111,6 @@ class Product(Base):
     model: Mapped["Model"] = relationship("Model", back_populates="products")
     category: Mapped["Category"] = relationship("Category", back_populates="products")
 
-
 class Status(Base):
     """Para gestionar los estados de los dispositivos y solicitudes."""
 
@@ -207,6 +206,14 @@ class LoanRequest(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+
+    book_items: Mapped[list["LoanRequestBookItem"]] = relationship(
+        "LoanRequestBookItem",
+        back_populates="loan_request",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
 class LoanRequestItem(Base):
     """Para gestionar los elementos de las solicitudes de préstamo, individualmente."""
 
@@ -221,6 +228,53 @@ class LoanRequestItem(Base):
 
     loan_request: Mapped["LoanRequest"] = relationship("LoanRequest", back_populates="loan_request_items")
     device: Mapped["Device"] = relationship("Device", back_populates="loan_request_items")
+
+class Book(Base):
+    """Libro disponible para préstamo en el laboratorio.
+
+    De momento las copias son indistinguibles, por eso se maneja stock total y disponible.
+    """
+
+    __tablename__ = "books"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(150))
+    author: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    isbn: Mapped[str | None] = mapped_column(String(30), nullable=True, unique=True)
+    topic: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    total_quantity: Mapped[int] = mapped_column(default=1, nullable=False)
+    available_quantity: Mapped[int] = mapped_column(default=1, nullable=False)
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+
+    loan_request_items: Mapped[list["LoanRequestBookItem"]] = relationship(
+        "LoanRequestBookItem",
+        back_populates="book",
+    )
+
+class LoanRequestBookItem(Base):
+    """Libros asociados a una solicitud de préstamo."""
+
+    __tablename__ = "loan_request_book_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    loan_request_id: Mapped[int] = mapped_column(
+        ForeignKey("loan_requests.id", ondelete="CASCADE")
+    )
+    book_id: Mapped[int] = mapped_column(
+        ForeignKey("books.id", ondelete="CASCADE")
+    )
+    quantity: Mapped[int] = mapped_column(default=1, nullable=False)
+
+    loan_request: Mapped["LoanRequest"] = relationship(
+        "LoanRequest",
+        back_populates="book_items",
+    )
+    book: Mapped["Book"] = relationship(
+        "Book",
+        back_populates="loan_request_items",
+    )
 
 class DeviceStatusLog(Base):
     """Para registrar los cambios de estado de los dispositivos."""
@@ -283,7 +337,6 @@ class AdministrativeDocument(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
-
 
 class AdministrativeDocumentItem(Base):
     """Dispositivos asociados a un documento administrativo."""

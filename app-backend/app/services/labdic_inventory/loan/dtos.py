@@ -21,6 +21,7 @@ class LoanRequestReadDTO(SQLAlchemyDTO[LoanRequest]):
             "loan_request_items.device.product.devices",
         },
         partial=True,
+        max_nested_depth=3,
     )
 
 @dataclass
@@ -31,3 +32,4 @@ class LoanRequestCreateDTO:
     estimated_return_date: datetime | None = None
     requested_user_id: int | None = None
     additional_items: str | None = None
+    book_ids: list[int] | None = None

@@ -392,7 +392,21 @@ onMounted(loadLoans)
             </div>
           </div>
         </div>
-        <div class="section-title"> Elementos adicionales </div>
+
+        <div v-if="selectedLoan.bookItems?.length" class="section-title">Libros
+          <Badge :value="selectedLoan.bookItems?.length ?? 0" />
+        </div>
+
+
+        <div v-if="selectedLoan.bookItems?.length" class="selected-devices-list">
+          <div v-for="item in selectedLoan.bookItems" :key="item.id" class="selected-device-item">
+            <i class="pi pi-book text-muted-color" />
+            <span> {{ item.book?.title ?? `Libro #${item.bookId}` }}</span>
+            <span class="device-code text-muted-color"> Cantidad: {{ item.quantity }} </span>
+          </div>
+        </div>
+
+        <div class="section-title">Elementos adicionales</div>
         <div v-if="selectedLoan.additionalItems" class="additional-items-box">
           {{ selectedLoan.additionalItems }}
         </div>
