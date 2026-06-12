@@ -161,7 +161,6 @@ def seed_ubications(session: Session) -> None:
         Ubication(name="TI-2", description="Sala secundaria de computadoras"),
         Ubication(name="Redes", description="Sala de equipos de redes"),
         Ubication(name="Administración", description="Oficina administrativa del LabDIC"),
-        Ubication(name="Bodega", description="Almacenamiento de equipos en desuso o mantención"),
     ]
     session.add_all(ubications)
     print("  ✓ Ubications insertadas")

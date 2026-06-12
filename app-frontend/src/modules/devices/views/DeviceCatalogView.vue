@@ -496,72 +496,98 @@ onMounted(loadData)
     </template>
 
     <template v-else>
-      <div class="filters-card">
-        <div class="filters-row">
-          <span class="p-input-icon-left catalog-search">
-            <i class="pi pi-search" />
-            <InputText v-model="bookSearch" placeholder="Buscar por título, autor o ISBN" />
-          </span>
+      <Card>
+        <template #content>
+          <div class="filters-row">
+            <InputText
+              v-model="bookSearch"
+              placeholder="Buscar por título, autor o ISBN..."
+              class="filter-search"
+            />
 
-          <Select
-            v-model="filterTopic"
-            :options="bookTopicOptions"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="Filtrar por temática"
-            showClear
+            <Select
+              v-model="filterTopic"
+              :options="bookTopicOptions"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Todas las temáticas"
+              showClear
+              class="filter-category"
+            >
+              <template #option="{ option }">
+                <div class="filter-option">
+                  <span>{{ option.label }}</span>
+                  <span class="filter-option-count">{{ option.count }}</span>
+                </div>
+              </template>
+            </Select>
+          </div>
+        </template>
+      </Card>
+
+      <Card>
+        <template #content>
+          <DataTable
+            :value="filteredBooks"
+            :loading="loading"
+            dataKey="id"
+            stripedRows
+            responsiveLayout="scroll"
           >
-            <template #option="{ option }">
-              <div class="filter-option">
-                <span>{{ option.label }}</span>
-                <span class="filter-option-count">{{ option.count }}</span>
+            <template #empty>
+              <div class="text-center py-8 text-muted-color">
+                <i class="pi pi-book text-4xl block mb-3 opacity-30" />
+                No hay libros disponibles en este momento.
               </div>
             </template>
-          </Select>
-        </div>
-      </div>
 
-      <DataTable
-        :value="filteredBooks"
-        dataKey="id"
-        responsiveLayout="scroll"
-        class="catalog-table"
-      >
-        <Column field="title" header="Libro" sortable />
+            <Column field="title" header="Libro" sortable />
 
-        <Column field="author" header="Autor">
-          <template #body="{ data }">
-            {{ data.author ?? '—' }}
-          </template>
-        </Column>
+            <Column field="author" header="Autor">
+              <template #body="{ data }">
+                {{ data.author ?? '—' }}
+              </template>
+            </Column>
 
-        <Column field="topic" header="Temática">
-          <template #body="{ data }">
-            {{ data.topic ?? '—' }}
-          </template>
-        </Column>
+            <Column field="topic" header="Temática">
+              <template #body="{ data }">
+                {{ data.topic ?? '—' }}
+              </template>
+            </Column>
 
-        <Column field="isbn" header="ISBN">
-          <template #body="{ data }">
-            {{ data.isbn ?? '—' }}
-          </template>
-        </Column>
+            <Column field="isbn" header="ISBN">
+              <template #body="{ data }">
+                {{ data.isbn ?? '—' }}
+              </template>
+            </Column>
 
-        <Column field="availableQuantity" header="Disponibles" sortable />
+            <Column field="availableQuantity" header="Disponibles" sortable />
 
-        <Column header="" style="width: 150px">
-          <template #body="{ data }">
+            <Column header="" style="width: 150px">
+              <template #body="{ data }">
+                <div class="action-cell">
+                  <Button
+                    :label="isBookSelected(data.id) ? 'Quitar' : 'Agregar'"
+                    :severity="isBookSelected(data.id) ? 'danger' : 'primary'"
+                    outlined
+                    :icon="isBookSelected(data.id) ? 'pi pi-cart-minus' : 'pi pi-cart-arrow-down'"
+                    size="small"
+                    @click="toggleBookSelection(data.id)"
+                  />
+                </div>
+              </template>
+            </Column>
+          </DataTable>
+
+          <div class="cart-bottom-action">
             <Button
-              :label="isBookSelected(data.id) ? 'Quitar' : 'Agregar'"
-              :severity="isBookSelected(data.id) ? 'danger' : 'primary'"
-              outlined
-              :icon="isBookSelected(data.id) ? 'pi pi-cart-minus' : 'pi pi-cart-arrow-down'"
-              size="small"
-              @click="toggleBookSelection(data.id)"
+              :label="`Ver carrito (${selectedDeviceIds.length + selectedBookIds.length})`"
+              icon="pi pi-shopping-cart"
+              @click="openCartDrawer"
             />
-          </template>
-        </Column>
-      </DataTable>
+          </div>
+        </template>
+      </Card>
     </template>
 
     <!-- Drawer carrito -->

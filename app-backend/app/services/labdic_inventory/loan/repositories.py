@@ -6,7 +6,7 @@ from advanced_alchemy.repository import SQLAlchemySyncRepository
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.inventory import Device, LoanRequest, LoanRequestItem, LoanRequestBookItem, Status, User
+from app.models.inventory import Device, LoanRequest, LoanRequestItem, Book, LoanRequestBookItem, Status, User
 
 
 class LoanRequestRepository(SQLAlchemySyncRepository[LoanRequest]):
@@ -28,6 +28,8 @@ class LoanRequestRepository(SQLAlchemySyncRepository[LoanRequest]):
                 selectinload(LoanRequest.loan_request_items)
                     .selectinload(LoanRequestItem.device)
                     .selectinload(Device.product),
+                selectinload(LoanRequest.book_items)
+                    .selectinload(LoanRequestBookItem.book),
             )
         )
 
@@ -77,6 +79,15 @@ class LoanRequestRepository(SQLAlchemySyncRepository[LoanRequest]):
             self.session.add(item)
 
         for book_id in book_ids or []:
+            book = self.session.get(Book, book_id)
+
+            if book is None:
+                raise ValueError(f"Libro no encontrado: {book_id}")
+
+            if book.available_quantity <= 0:
+                raise ValueError(f"No hay stock disponible para el libro: {book.title}")
+
+        for book_id in book_ids or []:
             self.session.add(
                 LoanRequestBookItem(
                     loan_request_id=loan.id,
@@ -99,9 +110,22 @@ class LoanRequestRepository(SQLAlchemySyncRepository[LoanRequest]):
             match_fields=["id"],
         )
 
+        loan = self.get_with_relations(loan_id)
+
         items = self.session.execute(
             select(LoanRequestItem).where(LoanRequestItem.loan_request_id == loan_id)
         ).scalars().all()
+
+        for item in loan.book_items:
+            book = self.session.get(Book, item.book_id)
+
+            if book is None:
+                continue
+
+            if book.available_quantity < item.quantity:
+                raise ValueError(f"No hay stock disponible para el libro: {book.title}")
+
+            book.available_quantity -= item.quantity
 
         for item in items:
             device = self.session.get(Device, item.device_id)
@@ -143,14 +167,16 @@ class LoanRequestRepository(SQLAlchemySyncRepository[LoanRequest]):
     def register_return(self, loan_id: int) -> LoanRequest:
         """Registra la devolución de los dispositivos."""
         disponible_id = self._get_status_id("disponible")
-        devuelto_id   = self._get_status_id("devuelto")  # ← fix: actualizar status de la solicitud
+        devuelto_id   = self._get_status_id("devuelto")
 
         self.get_and_update(
             id=loan_id,
-            status_id=devuelto_id,              # ← fix: estaba faltando esto
+            status_id=devuelto_id,
             actual_return_date=datetime.now(timezone.utc),
             match_fields=["id"],
         )
+
+        loan = self.get_with_relations(loan_id)
 
         items = self.session.execute(
             select(LoanRequestItem).where(LoanRequestItem.loan_request_id == loan_id)
@@ -160,6 +186,17 @@ class LoanRequestRepository(SQLAlchemySyncRepository[LoanRequest]):
             device = self.session.get(Device, item.device_id)
             if device:
                 device.status_id = disponible_id
+        
+        for item in loan.book_items:
+            book = self.session.get(Book, item.book_id)
+
+            if book is None:
+                continue
+
+            book.available_quantity += item.quantity
+
+            if book.available_quantity > book.total_quantity:
+                book.available_quantity = book.total_quantity
 
         self.session.commit()
         return self.get_with_relations(loan_id)
