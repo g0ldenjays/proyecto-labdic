@@ -9,4 +9,5 @@ taller_de_integracion_2/Packages.fls
 taller_de_integracion_2/Packages.log
 app-backend/README_schema.md
 app-backend/schema.sql
+app-frontend/.env
 informes/

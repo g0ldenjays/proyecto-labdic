@@ -5,7 +5,7 @@ import { useAuthStore } from "../stores/auth.store"
 import { useUserStore } from '../stores/user.store'
 import { useRouter } from 'vue-router'
 
-export const BASE_URL = 'http://localhost:8000'
+export const BASE_URL = import.meta.env.VITE_API_URL
 
 interface RequestInitWithJson extends RequestInit {
   json?: object | null | undefined
