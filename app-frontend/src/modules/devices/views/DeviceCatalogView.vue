@@ -350,19 +350,23 @@ onMounted(loadData)
     </div>
 
     <div class="catalog-tabs">
-      <Button
-        label="Dispositivos"
-        :severity="activeCatalogTab === 'devices' ? 'primary' : 'secondary'"
-        :outlined="activeCatalogTab !== 'devices'"
+      <button
+        type="button"
+        class="catalog-tab"
+        :class="{ active: activeCatalogTab === 'devices' }"
         @click="activeCatalogTab = 'devices'"
-      />
+      >
+        Dispositivos
+      </button>
 
-      <Button
-        label="Libros"
-        :severity="activeCatalogTab === 'books' ? 'primary' : 'secondary'"
-        :outlined="activeCatalogTab !== 'books'"
+      <button
+        type="button"
+        class="catalog-tab"
+        :class="{ active: activeCatalogTab === 'books' }"
         @click="activeCatalogTab = 'books'"
-      />
+      >
+        Libros
+      </button>
     </div>
 
     <template v-if="activeCatalogTab === 'devices'">
@@ -1007,8 +1011,38 @@ onMounted(loadData)
 }
 
 .catalog-tabs {
-  display: flex;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   margin-bottom: 1rem;
 }
+
+.catalog-tab {
+  position: relative;
+  padding: 0.9rem 1rem;
+  border: none;
+  border-bottom: 4px solid var(--p-surface-400, #6b7280);
+  background: transparent;
+  color: var(--p-text-color);
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  opacity: 0.45;
+  transition:
+    color 180ms ease,
+    background 180ms ease,
+    opacity 180ms ease,
+    border-color 180ms ease;
+}
+
+.catalog-tab:hover {
+  background: var(--p-surface-50, rgba(0, 0, 0, 0.03));
+  opacity: 0.75;
+}
+
+.catalog-tab.active {
+  color: var(--p-primary-color);
+  opacity: 1;
+  border-bottom-color: var(--p-primary-color);
+}
+
 </style>

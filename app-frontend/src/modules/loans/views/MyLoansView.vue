@@ -141,13 +141,44 @@ onMounted(loadLoans)
             </template>
           </Column>
 
-          <Column header="Dispositivos" style="width: 120px">
+
+          <Column header="Solicitados" style="width: 180px">
             <template #body="{ data }">
-              <span class="device-count">
-                <i class="pi pi-server mr-1" />{{ data.loanRequestItems?.length ?? 0 }}
-              </span>
+              <div class="requested-summary">
+                <span
+                  class="requested-pill"
+                  v-tooltip.top="'Dispositivos solicitados'"
+                >
+                  <i class="pi pi-server" />
+                  {{ data.loanRequestItems?.length ?? 0 }}
+                </span>
+
+                <span
+                  class="requested-pill"
+                  v-tooltip.top="'Libros solicitados'"
+                >
+                  <i class="pi pi-book" />
+                  {{ data.bookItems?.length ?? 0 }}
+                </span>
+
+                <span
+                  class="requested-pill"
+                  v-tooltip.top="data.additionalItems ? 'Incluye elementos adicionales' : 'Sin elementos adicionales'"
+                >
+                  <i class="pi pi-lines" />
+                  <i
+                    v-if="data.additionalItems"
+                    class="pi pi-check"
+                  />
+                  <i
+                    v-else
+                    class="pi pi-times"
+                  />
+                </span>
+              </div>
             </template>
           </Column>
+
 
           <Column header="Motivo">
             <template #body="{ data }">
@@ -451,4 +482,29 @@ onMounted(loadLoans)
   white-space: pre-wrap;
   font-size: 0.875rem;
 }
+
+.requested-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.requested-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 2.5rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--p-surface-100, rgba(0, 0, 0, 0.04));
+  color: var(--p-text-color);
+}
+
+.requested-pill i {
+  font-size: 0.8rem;
+}
+
 </style>
