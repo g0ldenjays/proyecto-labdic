@@ -29,3 +29,17 @@ export async function login(
     body: params,
   })
 }
+
+export interface GoogleRegisterPayload {
+  credential: string
+  password: string
+  confirmPassword: string
+  rut?: string | null
+}
+
+export function googleRegister(payload: GoogleRegisterPayload) {
+  return apiFetch(`${AUTH}/google-register`, {
+    method: 'POST',
+    json: payload,
+  })
+}

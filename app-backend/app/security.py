@@ -27,5 +27,5 @@ oauth2_auth = OAuth2PasswordBearerAuth[User](
     retrieve_user_handler=retrieve_user_handler,
     token_secret=settings.secret_key.get_secret_value(),
     token_url="/labdic_inventory/auth/login",
-    exclude=["/labdic_inventory/auth/login", "/schema"],
+    exclude=["/labdic_inventory/auth/login", "/labdic_inventory/auth/google-register", "/schema"],
 )

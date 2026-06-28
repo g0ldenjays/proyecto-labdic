@@ -86,6 +86,41 @@ class UserRepository(SQLAlchemySyncRepository[User]):
         user = self.get(username, id_attribute="username")
 
         return password_hasher.verify(password, user.password)
+    
+    def get_by_email(self, email: str) -> User | None:
+        stmt = select(User).where(User.email == email)
+        return self.session.execute(stmt).scalar_one_or_none()
+
+
+    def get_by_username(self, username: str) -> User | None:
+        stmt = select(User).where(User.username == username)
+        return self.session.execute(stmt).scalar_one_or_none()
+    
+    def create_user(
+        self,
+        rut: str,
+        name: str,
+        username: str,
+        email: str,
+        password: str,
+        is_admin: bool = False,
+        is_active: bool = True,
+    ) -> User:
+        user = User(
+            rut=rut,
+            name=name,
+            username=username,
+            email=email,
+            password=password,
+            is_admin=is_admin,
+            is_active=is_active,
+        )
+
+        self.session.add(user)
+        self.session.commit()
+        self.session.refresh(user)
+
+        return user
 
 def provide_user_repository(db_session: Session) -> UserRepository:
     """

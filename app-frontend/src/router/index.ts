@@ -33,6 +33,11 @@ const routes: RouteRecordRaw[] = [
     children: [{ path: '', name: 'login', component: LoginView }],
   },
   {
+    path: '/register',
+    name: 'register',
+    component: () => import('@/modules/auth/views/RegisterView.vue'),
+  },  
+  {
     path: '/',
     component: AppLayout,
     meta: { requiresAuth: true },

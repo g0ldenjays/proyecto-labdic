@@ -17,5 +17,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    google_client_id: str
+    allowed_google_domain: str = "umag.cl"
+
 
 settings = Settings()

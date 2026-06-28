@@ -42,6 +42,11 @@ export async function apiFetch<T>(
   if (options.json) {
     options.body = JSON.stringify(changeKeys.snakeCase(options.json, 5))
     options.json = undefined
+
+    headers = {
+      'Content-Type': 'application/json',
+      ...headers,
+    }
   }
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
