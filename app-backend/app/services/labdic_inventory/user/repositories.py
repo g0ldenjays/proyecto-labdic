@@ -103,6 +103,7 @@ class UserRepository(SQLAlchemySyncRepository[User]):
         username: str,
         email: str,
         password: str,
+        avatar_url: str | None = None,
         is_admin: bool = False,
         is_active: bool = True,
     ) -> User:
@@ -112,6 +113,7 @@ class UserRepository(SQLAlchemySyncRepository[User]):
             username=username,
             email=email,
             password=password,
+            avatar_url=avatar_url,
             is_admin=is_admin,
             is_active=is_active,
         )

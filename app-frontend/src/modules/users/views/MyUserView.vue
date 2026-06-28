@@ -7,6 +7,7 @@ import { getMyUser } from '@/services/user.service'
 const toast   = useToast()
 const myUser  = ref<User | null>(null)
 const loading = ref(false)
+const avatarImageFailed = ref(false)
 
 // Inicial del avatar generada desde el nombre
 const avatarInitial = computed(() => {
@@ -30,6 +31,11 @@ const avatarColor = computed((): [string, string] => {
   return colors[idx]
 })
 
+const avatarImageUrl = computed(() => {
+  if (avatarImageFailed.value) return null
+  return myUser.value?.avatarUrl ?? null
+})
+
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('es-CL', {
     day: '2-digit', month: 'long', year: 'numeric'
@@ -38,6 +44,7 @@ function formatDate(dateStr: string) {
 
 async function loadMyUser() {
   loading.value = true
+  avatarImageFailed.value = false
   try {
     myUser.value = await getMyUser()
   } catch {
@@ -50,6 +57,10 @@ async function loadMyUser() {
   } finally {
     loading.value = false
   }
+}
+
+function handleAvatarImageError() {
+  avatarImageFailed.value = true
 }
 
 onMounted(loadMyUser)
@@ -71,12 +82,21 @@ onMounted(loadMyUser)
         <div class="hero-bg" :style="`background: linear-gradient(135deg, ${avatarColor[0]}22, ${avatarColor[1]}11)`" />
 
         <div class="hero-content">
+          
           <!-- Avatar -->
           <div
             class="avatar-ring"
             :style="`background: linear-gradient(135deg, ${avatarColor[0]}, ${avatarColor[1]})`"
           >
-            <div class="avatar-inner">
+            <img
+              v-if="avatarImageUrl"
+              class="avatar-image"
+              :src="avatarImageUrl"
+              :alt="myUser.name"
+              @error="handleAvatarImageError"
+            />
+
+            <div v-else class="avatar-inner">
               <span class="avatar-letter">{{ avatarInitial }}</span>
             </div>
           </div>
@@ -255,6 +275,14 @@ onMounted(loadMyUser)
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  background: var(--p-surface-0, #fff);
 }
 .avatar-letter {
   font-size: 2rem;

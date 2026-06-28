@@ -13,6 +13,7 @@ export interface User {
   isAdmin: boolean
   isActive: boolean
   roles: Role[]
+  avatarUrl?: string | null
 }
 
 export interface NewUserPayload {

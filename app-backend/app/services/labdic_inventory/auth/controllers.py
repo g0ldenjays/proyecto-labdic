@@ -82,6 +82,7 @@ class AuthController(Controller):
 
         username = email.split("@")[0]
         name = token_info.get("name") or username
+        avatar_url = token_info.get("picture")
 
         existing_email = users_repo.get_by_email(email)
         if existing_email:
@@ -97,6 +98,7 @@ class AuthController(Controller):
             username=username,
             email=email,
             password=password_hasher.hash(data.password),
+            avatar_url=avatar_url,
             is_admin=False,
             is_active=True,
         )

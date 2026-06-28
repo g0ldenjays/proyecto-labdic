@@ -70,7 +70,9 @@ function handleLogout() {
         aria-controls="user-menu"
       >
         <template #icon>
-          <div class="avatar">
+          <img v-if="userStore.currentUser?.avatarUrl" class="avatar" :src="userStore.currentUser.avatarUrl" :alt="userStore.currentUser.name" />
+
+          <div v-else class="avatar-fallback">
             {{ (userStore.currentUser?.name ?? userStore.currentUser?.username ?? '?')[0].toUpperCase() }}
           </div>
         </template>
@@ -124,18 +126,26 @@ function handleLogout() {
 }
 
 /* Avatar */
-.avatar-btn { padding: 0 !important; }
-.avatar {
+.avatar,
+.avatar-fallback {
   width: 34px;
   height: 34px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #4f46e5, #06b6d4);
-  color: white;
-  font-weight: 700;
+  border-radius: 999px;
+}
+
+.avatar {
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-fallback {
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--p-primary-color);
+  color: var(--p-primary-color);
+  font-weight: 800;
   font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: var(--p-surface-0, #ffffff);
 }
 
 /* Ocultar nombre en móvil */
