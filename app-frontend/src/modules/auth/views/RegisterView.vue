@@ -14,6 +14,7 @@ const rut = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const submitting = ref(false)
+const allowedEmailDomains = ['umag.cl', 'umagallanes.cl']
 
 const username = computed(() => {
   if (!email.value) return ''
@@ -35,11 +36,13 @@ function handleGoogleCredential(response: { credential: string }) {
   email.value = payload.email ?? ''
   name.value = payload.name ?? ''
 
-  if (!email.value.endsWith('@umag.cl')) {
+  const emailDomain = email.value.split('@').at(-1)?.toLowerCase() ?? ''
+
+  if (!allowedEmailDomains.includes(emailDomain)) {
     toast.add({
       severity: 'warn',
       summary: 'Correo no permitido',
-      detail: 'Solo se permiten correos institucionales @umag.cl.',
+      detail: 'Solo se permiten correos institucionales UMAG autorizados.',
       life: 4000,
     })
 

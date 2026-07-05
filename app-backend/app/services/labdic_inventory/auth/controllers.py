@@ -69,16 +69,22 @@ class AuthController(Controller):
 
         email = token_info.get("email")
         email_verified = token_info.get("email_verified")
-        hosted_domain = token_info.get("hd")
-
         if not email or not email_verified:
             raise HTTPException(status_code=400, detail="El correo de Google no está verificado.")
 
-        if not email.endswith(f"@{settings.allowed_google_domain}"):
-            raise HTTPException(status_code=400, detail="Solo se permiten correos institucionales @umag.cl.")
+        allowed_domains = [
+            domain.strip().lower()
+            for domain in settings.allowed_google_domains.split(",")
+            if domain.strip()
+        ]
 
-        if hosted_domain and hosted_domain != settings.allowed_google_domain:
-            raise HTTPException(status_code=400, detail="El dominio de Google no corresponde a UMAG.")
+        email_domain = email.split("@")[-1].lower()
+
+        if email_domain not in allowed_domains:
+            raise HTTPException(
+                status_code=400,
+                detail="Solo se permiten correos institucionales autorizados.",
+            )
 
         username = email.split("@")[0]
         name = token_info.get("name") or username
